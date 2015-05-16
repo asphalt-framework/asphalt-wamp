@@ -1,0 +1,2 @@
+[run]
+omit = asphalt/wamp/pytest.py
