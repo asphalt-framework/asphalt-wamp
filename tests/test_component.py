@@ -29,7 +29,7 @@ def test_multiple_clients(event_loop):
     component = WAMPComponent(clients={
         'wamp1': {'url': 'ws://127.0.0.1/ws1'},
         'wamp2': {'url': 'ws://127.0.0.1/ws2'}
-    })
+    }, auth_id='username')
     ctx = Context()
     yield from component.start(ctx)
 
@@ -37,9 +37,4 @@ def test_multiple_clients(event_loop):
     assert isinstance(ctx.wamp2, WAMPClient)
     assert ctx.wamp1.url == 'ws://127.0.0.1/ws1'
     assert ctx.wamp2.url == 'ws://127.0.0.1/ws2'
-
-
-def test_conflicting_config():
-    exc = pytest.raises(ValueError, WAMPComponent, clients={'default': {}}, url='ws://1.2.3.4/')
-    assert str(exc.value) == ('specify either a "clients" dictionary or the default client\'s '
-                              'options directly, but not both')
+    assert ctx.wamp1.auth_id == ctx.wamp2.auth_id == 'username'

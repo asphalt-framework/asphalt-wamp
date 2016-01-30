@@ -8,7 +8,7 @@
   :target: https://codeclimate.com/github/asphalt-framework/asphalt-wamp
   :alt: Code Climate
 
-This is a component for the Asphalt framework that provides integration with the WAMP_
+This is a component for the Asphalt framework that provides WAMP_
 (Web Application Message Protocol) integration.
 
 .. _WAMP: http://wamp-proto.org/

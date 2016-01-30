@@ -3,6 +3,7 @@
 .idea
 .tox
 .coverage
+.coverage.*
 .cache
 .eggs/
 *.egg-info/
@@ -11,3 +12,6 @@ __pycache__/
 docs/_build/
 dist/
 build/
+node.key
+node.log
+node.pid

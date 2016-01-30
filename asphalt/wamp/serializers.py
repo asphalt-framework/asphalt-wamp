@@ -32,5 +32,7 @@ def wrap_serializer(serializer: Serializer):
         return SerializerWrapper(serializer, 'json', 1, False)
     elif serializer.mimetype == 'application/x-msgpack':
         return SerializerWrapper(serializer, 'msgpack', 2, True)
+    elif serializer.mimetype == 'application/cbor':
+        return SerializerWrapper(serializer, 'cbor', 3, True)
 
     raise TypeError('cannot adapt serializer of type {}'.format(serializer.mimetype))

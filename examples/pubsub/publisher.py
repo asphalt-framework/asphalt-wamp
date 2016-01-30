@@ -20,15 +20,16 @@ logger = logging.getLogger(__name__)
 class PublisherComponent(ContainerComponent):
     @coroutine
     def start(self, ctx: Context):
-        port, topic, message = sys.argv[1:]
-        self.add_component('wamp', url='ws://localhost:{}'.format(port))
+        self.add_component('wamp', url='ws://localhost:56666')
         yield from super().start(ctx)
+
+        port, topic, message = sys.argv[1:]
         yield from ctx.wamp.publish(topic, message)
-        logger.info('Published "%s" to topic "%s"', message, topic)
+
         stop_event_loop()
 
-if len(sys.argv) < 4:
-    print('Usage: {} <port> <topic> <message>'.format(sys.argv[0]), file=sys.stderr)
+if len(sys.argv) < 3:
+    print('Usage: {} <topic> <message>'.format(sys.argv[0]), file=sys.stderr)
     sys.exit(1)
 
 run_application(PublisherComponent(), logging=logging.DEBUG)

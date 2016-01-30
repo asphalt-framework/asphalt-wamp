@@ -1,0 +1,15 @@
+---
+workers:
+- type: router
+  realms:
+  - name: default
+    roles:
+    - name: anonymous
+      permissions:
+      - {call: true, publish: true, register: true, subscribe: true, uri: '*'}
+  transports:
+  - type: websocket
+    endpoint:
+      type: tcp
+      interface: localhost
+      port: 56666

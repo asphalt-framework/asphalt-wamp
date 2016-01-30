@@ -1,14 +1,26 @@
+from typing import Callable, Union
 from contextlib import closing
-from pathlib import Path
+from pathlib import Path, PurePath
 from tempfile import mkdtemp
-from typing import Callable
+import shutil
+import atexit
 import subprocess
 import socket
 import inspect
 import sys
 
+from typeguard import check_argument_types
 
-def validate_handler(handler: Callable, kind: str):
+
+def unwrap_function(func: Callable) -> Callable:
+    unwrapped = func
+    while hasattr(unwrapped, '__wrapped__'):
+        unwrapped = unwrapped.__wrapped__
+
+    return unwrapped
+
+
+def validate_handler(handler: Callable, kind: str) -> None:
     unwrapped = handler
     while hasattr(unwrapped, '__wrapped__'):
         unwrapped = unwrapped.__wrapped__
@@ -17,68 +29,65 @@ def validate_handler(handler: Callable, kind: str):
         if not spec.varargs and len(spec.args) < min_args:
             raise TypeError('{} must accept at least one positional argument'.format(kind))
 
-    return unwrapped
 
-
-def get_next_free_tcp_port():
+def get_next_free_tcp_port() -> int:
+    """Return the next free TCP port on the ``localhost`` interface."""
     with closing(socket.socket()) as sock:
         sock.bind(('localhost', 0))
         return sock.getsockname()[1]
 
 
-def launch_crossbar(port: int=None) -> int:
+def launch_crossbar(directory: Union[str, PurePath]) -> None:
+    """
+    Launch an instance of the Crossbar WAMP router.
+
+    :param directory: the directory containing the configuration file (must be writable)
+
+    """
+    process = subprocess.Popen([sys.executable, '-u', '-m', 'crossbar.controller.cli', 'start',
+                                '--cbdir', str(directory)],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    # Read output until a line is found that confirms the transport is ready
+    for line in process.stdout:
+        if b"transport 'transport1' started" in line:
+            atexit.register(process.terminate)
+            return
+
+    raise RuntimeError('Crossbar failed to start: ' + process.stderr.read().decode())
+
+
+def launch_adhoc_crossbar(config) -> int:
     """
     Launch an ad-hoc instance of the Crossbar WAMP router.
 
-    In this Crossbar instance, no authentication or authorization rules have been defined and the
-    anonymous user has full privileges on everything.
-    One websocket transport is defined, listening on ``localhost`` on the given port.
-    If no port is given, the next free port will be used.
+    This is a convenience function for testing purposes and should not be used in production.
 
-    Before writing the configuration file contents, :meth:`str.format` will be called on it
-    with ``port`` as the only variable.
+    It writes the given configuration in a temporary directory and replaces ``%(port)s`` in the
+    configuration with an ephemeral TCP port.
 
-    :param port the port where the websocket transport will listen on
-    :return: the port where the transport listens on
+    If no configuration is given a default configuration is used where only anonymous
+    authentication is defined and the anonymous user has all privileges on everything.
+    One websocket transport is defined, listening on ``localhost``.
+
+    The Crossbar process is automatically terminated and temporary directory deleted when the host
+    process terminates.
+
+    :param config: YAML configuration for crossbar (for ``config.yaml``)
+    :return: the automatically selected port
 
     """
-    port = port or get_next_free_tcp_port()
-    config = """\
----
-controller: {{}}
-workers:
-- type: router
-  realms:
-  - name: default
-    roles:
-    - name: anonymous
-      permissions:
-      - {{call: true, publish: true, register: true, subscribe: true, uri: '*'}}
-  transports:
-  - type: websocket
-    endpoint:
-      type: tcp
-      interface: localhost
-      port: {port}
-""".format(port=port)
+    check_argument_types()
 
-    # Create a configuration file
+    # Get the next available TCP port
+    port = get_next_free_tcp_port()
+
+    # Write the configuration file
     tempdir = Path(mkdtemp())
+    atexit.register(shutil.rmtree, str(tempdir))
     config_file = tempdir / 'config.yaml'
     with config_file.open('w') as f:
-        f.write(config)
+        f.write(config % {'port': port})
 
-    # Launch crossbar in a subprocess
-    bin_directory = 'Scripts' if sys.platform == 'win32' else 'bin'
-    bin_path = Path(sys.prefix) / bin_directory / 'crossbar'
-    process = subprocess.Popen([str(bin_path), 'start', '--cbdir', str(tempdir)],
-                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                               env={'PYTHONUNBUFFERED': '1'})
-
-    # Read output until a line is found that confirms the transport is
-    # ready
-    for line in process.stdout:
-        if b"transport 'transport1' started" in line:
-            return port
-
-    raise RuntimeError('crossbar failed to start: ' + process.stderr.read().decode())
+    launch_crossbar(tempdir)
+    return port

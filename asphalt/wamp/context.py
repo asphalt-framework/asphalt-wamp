@@ -1,7 +1,7 @@
 from autobahn.wamp.types import CallDetails, SessionDetails, EventDetails
 
 from asphalt.core.context import Context
-from asphalt.core.util import asynchronous
+from asphalt.core.concurrency import asynchronous
 
 
 class CallContext(Context):
@@ -12,12 +12,10 @@ class CallContext(Context):
 
     :ivar int session_id: our own WAMP session ID
     :ivar Optional[int] caller_session_id: WAMP session ID of the caller, if disclosed
-    :ivar Optional[Callable[..., None]] progress: a callable through which the handler can send
+    :ivar Optional[Callable] progress: a callable through which the handler can send
         progress information to the caller
     :ivar str procedure: absolute name of the procedure
     """
-
-    __slots__ = 'session_id', 'caller_session_id', 'progress', 'procedure'
 
     def __init__(self, parent: Context, session_details: SessionDetails,
                  call_details: CallDetails, **kwargs):

@@ -1,4 +1,7 @@
-"""This example demonstrates how to make RPC calls with WAMP."""
+"""
+This example WAMP client first calls the ``test.reverse`` remote method with string given as the
+command line. It then publishes the return value on the ``topic.subtopic`` topic.
+"""
 
 from asyncio import coroutine
 import logging
@@ -17,8 +20,8 @@ class RPCClientComponent(ContainerComponent):
         yield from super().start(ctx)
 
         message = sys.argv[1]
-        result = yield from ctx.wamp.call('uppercase', message)
-        print('{!r} translated to upper case is {!r}'.format(message, result))
+        result = yield from ctx.wamp.call('test.reverse', message)
+        yield from ctx.wamp.publish('topic.subtopic', result)
 
         stop_event_loop()
 

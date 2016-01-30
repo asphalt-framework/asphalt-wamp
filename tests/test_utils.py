@@ -2,7 +2,7 @@ from asyncio import coroutine
 
 import pytest
 
-from asphalt.wamp.utils import validate_handler
+from asphalt.wamp.utils import validate_handler, launch_adhoc_crossbar
 
 
 class Dummy:
@@ -36,3 +36,7 @@ def test_validate_handler(handler):
 def test_validate_handler_insufficient_args(handler):
     exc = pytest.raises(TypeError, validate_handler, coroutine(handler), 'xyz')
     assert str(exc.value) == 'xyz must accept at least one positional argument'
+
+
+def test_crossbar_launch_fail():
+    pytest.raises(RuntimeError, launch_adhoc_crossbar, '')

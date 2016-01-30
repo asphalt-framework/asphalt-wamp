@@ -13,7 +13,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 project = 'asphalt-wamp'
 author = 'Alex Grönholm'
-copyright = '2015, ' + author
+copyright = '2016, ' + author
 
 v = pkg_resources.get_distribution('asphalt-wamp').parsed_version
 version = v.base_version

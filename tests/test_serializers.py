@@ -1,4 +1,5 @@
 from autobahn.wamp import serializer as autobahn
+from asphalt.serialization.serializers.cbor import CBORSerializer
 from asphalt.serialization.serializers.json import JSONSerializer
 from asphalt.serialization.serializers.msgpack import MsgpackSerializer
 from asphalt.serialization.serializers.yaml import YAMLSerializer
@@ -7,7 +8,8 @@ import pytest
 from asphalt.wamp.serializers import wrap_serializer, ObjectSerializerWrapper
 
 
-@pytest.fixture(params=[JSONSerializer, MsgpackSerializer], ids=['json', 'msgpack'])
+@pytest.fixture(params=[JSONSerializer, MsgpackSerializer, CBORSerializer],
+                ids=['json', 'msgpack', 'cbor'])
 def serializer(request):
     return request.param()
 

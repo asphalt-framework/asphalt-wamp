@@ -1,0 +1,28 @@
+---
+workers:
+- type: router
+  realms:
+  - name: default
+    roles:
+    - name: client
+      permissions:
+      - {call: true, publish: false, register: false, subscribe: true, uri: '*'}
+    - name: server
+      permissions:
+      - {call: true, publish: true, register: true, subscribe: true, uri: '*'}
+  transports:
+  - type: websocket
+    endpoint:
+      type: tcp
+      interface: localhost
+      port: 56666
+    auth:
+      ticket:
+        type: static
+        principals:
+          testserver:
+            ticket: server123
+            role: server
+          testclient:
+            ticket: client123
+            role: client
