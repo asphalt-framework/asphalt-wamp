@@ -56,9 +56,9 @@ def setup_txaio():
 
 @pytest.yield_fixture
 def wampclient(request, event_loop, ws_url, setup_txaio):
-    method, auth_id, secret = getattr(request, 'param', (None, None, None))
-    client = WAMPClient(ws_url, auth_method=method, auth_id=auth_id, auth_secret=secret,
-                        debug_app=True, debug_code_paths=True, debug_factory=True)
+    kwargs = getattr(request, 'param', {})
+    client = WAMPClient(ws_url, debug_app=True, debug_code_paths=True, debug_factory=True,
+                        **kwargs)
     event_loop.run_until_complete(client.start(Context()))
     yield client
     event_loop.run_until_complete(client.disconnect())

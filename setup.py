@@ -37,7 +37,7 @@ setup(
         'autobahn >= 0.12.1'
     ],
     extras_require={
-        'crossbar': 'crossbar >= 0.12'
+        'crossbar': 'crossbar >= 0.12.1'
     },
     entry_points={
         'asphalt.components': [

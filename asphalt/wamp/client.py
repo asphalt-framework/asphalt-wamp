@@ -90,7 +90,8 @@ class WAMPClient(EventSource):
     :param realm: the WAMP realm to join the application session to (defaults to the resource
         name if not specified)
     :param url: the websocket URL to connect to
-    :param call_defaults: default
+    :param call_defaults: default values for the ``timeout`` and ``disclose_me`` keyword arguments
+        to :meth:`call`
     :param registry: a WAMP registry or a string reference to one (defaults to creating a new
         instance if omitted)
     :param ssl_context: an SSL context or the name of an :class:`ssl.SSLContext` resource
@@ -279,6 +280,11 @@ class WAMPClient(EventSource):
         assert check_argument_types()
         if self._session is None:
             yield from self.connect()
+
+        if timeout is None:
+            timeout = self.call_defaults.get('timeout')
+        if disclose_me is None:
+            disclose_me = self.call_defaults.get('disclose_me')
 
         options = CallOptions(on_progress=on_progress, timeout=timeout, disclose_me=disclose_me)
         return (yield from self._session.call(endpoint, *args, options=options, **kwargs))

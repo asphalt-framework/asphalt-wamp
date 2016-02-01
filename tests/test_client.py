@@ -1,5 +1,6 @@
 import asyncio
 import queue
+from asyncio.coroutines import coroutine
 
 from autobahn.wamp.types import Challenge
 from asphalt.core.concurrency import blocking, asynchronous
@@ -62,6 +63,19 @@ def test_call_async(wampclient: WAMPClient, connect_first):
     assert result == 1
 
 
+@pytest.mark.parametrize('wampclient', [{'call_defaults': {'disclose_me': True}}], indirect=True)
+@pytest.mark.asyncio
+def test_call_defaults(wampclient: WAMPClient):
+    @asynchronous
+    @coroutine
+    def whoami(ctx):
+        return ctx.session_id
+
+    yield from wampclient.register_procedure(whoami, 'test.whoami')
+    result = yield from wampclient.call('test.whoami')
+    assert result == wampclient.session_id
+
+
 @pytest.mark.asyncio
 def test_register_call_progress_async(wampclient: WAMPClient):
     @asyncio.coroutine
@@ -90,7 +104,9 @@ def test_register_call_blocking(wampclient: WAMPClient):
     assert result == 5
 
 
-@pytest.mark.parametrize('wampclient', [('wampcra', 'testuser', 'testpass')], indirect=True)
+@pytest.mark.parametrize('wampclient', [
+    {'auth_method': 'wampcra', 'auth_id': 'testuser', 'auth_secret': 'testpass'}
+], indirect=True)
 @pytest.mark.asyncio
 def test_auth_wampcra(wampclient: WAMPClient):
     yield from wampclient.connect()
@@ -98,7 +114,9 @@ def test_auth_wampcra(wampclient: WAMPClient):
     assert result['authid'] == 'testuser'
 
 
-@pytest.mark.parametrize('wampclient', [('ticket', 'device1', 'abc123')], indirect=True)
+@pytest.mark.parametrize('wampclient', [
+    {'auth_method': 'ticket', 'auth_id': 'device1', 'auth_secret': 'abc123'}
+], indirect=True)
 @pytest.mark.asyncio
 def test_auth_ticket(wampclient: WAMPClient):
     yield from wampclient.connect()
@@ -106,7 +124,9 @@ def test_auth_ticket(wampclient: WAMPClient):
     assert result['authid'] == 'device1'
 
 
-@pytest.mark.parametrize('wampclient', [('ticket', 'device1', 'abc124')], indirect=True)
+@pytest.mark.parametrize('wampclient', [
+    {'auth_method': 'ticket', 'auth_id': 'device1', 'auth_secret': 'abc124'}
+], indirect=True)
 @pytest.mark.asyncio
 def test_auth_failure(wampclient: WAMPClient):
     with pytest.raises(AuthenticationError) as e:
