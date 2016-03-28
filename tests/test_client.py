@@ -1,6 +1,5 @@
 import asyncio
 import queue
-from asyncio.coroutines import coroutine
 
 from autobahn.wamp.types import Challenge
 from asphalt.core.concurrency import blocking, asynchronous
@@ -12,25 +11,25 @@ from asphalt.wamp.events import SessionJoinEvent, SessionLeaveEvent
 
 class TestAsphaltSession:
     def test_challenge_mismatch(self):
-        session = AsphaltSession('default', 'ticket', 'foo', 'bar', True, asyncio.Future())
+        session = AsphaltSession('default', 'ticket', 'foo', 'bar', asyncio.Future())
         challenge = Challenge('wampcra')
         exc = pytest.raises(Exception, session.onChallenge, challenge)
         assert str(exc.value) == ('Expected authentication method "ticket" but received a '
                                   '"wampcra" challenge instead')
 
     def test_ticket_challenge(self):
-        session = AsphaltSession('default', 'ticket', 'foo', 'bar', True, asyncio.Future())
+        session = AsphaltSession('default', 'ticket', 'foo', 'bar', asyncio.Future())
         challenge = Challenge('ticket')
         assert session.onChallenge(challenge) == 'bar'
 
     def test_wampcra_challenge(self):
-        session = AsphaltSession('default', 'wampcra', 'foo', 'bar', True, asyncio.Future())
+        session = AsphaltSession('default', 'wampcra', 'foo', 'bar', asyncio.Future())
         challenge = Challenge('wampcra', {'challenge': b'\xff\x00345jfsdf'})
         retval = session.onChallenge(challenge)
         assert isinstance(retval, bytes)
 
     def test_wampcra_salted_challenge(self):
-        session = AsphaltSession('default', 'wampcra', 'foo', 'bar', True, asyncio.Future())
+        session = AsphaltSession('default', 'wampcra', 'foo', 'bar', asyncio.Future())
         challenge = Challenge('wampcra', {'challenge': b'\xff\x00345jfsdf', 'salt': '5ihod',
                                           'iterations': 5, 'keylen': 32})
         retval = session.onChallenge(challenge)
@@ -61,19 +60,6 @@ def test_call_async(wampclient: WAMPClient, connect_first):
 
     result = yield from wampclient.call('wamp.session.count')
     assert result == 1
-
-
-@pytest.mark.parametrize('wampclient', [{'call_defaults': {'disclose_me': True}}], indirect=True)
-@pytest.mark.asyncio
-def test_call_defaults(wampclient: WAMPClient):
-    @asynchronous
-    @coroutine
-    def whoami(ctx):
-        return ctx.session_id
-
-    yield from wampclient.register_procedure(whoami, 'test.whoami')
-    result = yield from wampclient.call('test.whoami')
-    assert result == wampclient.session_id
 
 
 @pytest.mark.asyncio

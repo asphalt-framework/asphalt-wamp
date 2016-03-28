@@ -1,28 +1,27 @@
-from typing import Callable, Iterable, Optional, Dict, Any, Union
 from asyncio import wait, wait_for, coroutine, Future, Lock, get_event_loop, FIRST_EXCEPTION
 from functools import partial
 from ssl import SSLContext
+from typing import Callable, Iterable, Optional, Union
 
-from typeguard import check_argument_types
-from autobahn.asyncio.websocket import WampWebSocketClientFactory
-from autobahn.asyncio.wamp import ApplicationSession
-from autobahn.wamp.types import (
-    ComponentConfig, SessionDetails, EventDetails, CallDetails, PublishOptions, CallOptions,
-    CloseDetails, Challenge, SubscribeOptions, RegisterOptions)
-from autobahn.wamp import auth
+import txaio
+from asphalt.core.concurrency import asynchronous
 from asphalt.core.context import Context
 from asphalt.core.event import EventSource
-from asphalt.core.concurrency import asynchronous
 from asphalt.core.util import resolve_reference
 from asphalt.serialization.api import Serializer
 from asphalt.serialization.serializers.cbor import CBORSerializer
+from asphalt.wamp.context import EventContext, CallContext
+from asphalt.wamp.events import SessionJoinEvent, SessionLeaveEvent
 from asphalt.wamp.registry import Subscriber, Procedure
+from asphalt.wamp.registry import WAMPRegistry
 from asphalt.wamp.serializers import wrap_serializer
-import txaio
-
-from .context import EventContext, CallContext
-from .events import SessionJoinEvent, SessionLeaveEvent
-from .registry import WAMPRegistry
+from autobahn.asyncio.wamp import ApplicationSession
+from autobahn.asyncio.websocket import WampWebSocketClientFactory
+from autobahn.wamp import auth
+from autobahn.wamp.types import (
+    ComponentConfig, SessionDetails, EventDetails, CallDetails, PublishOptions, CallOptions,
+    CloseDetails, Challenge, SubscribeOptions, RegisterOptions)
+from typeguard import check_argument_types
 
 __all__ = ('AuthenticationError', 'WAMPClient')
 
@@ -36,9 +35,8 @@ class AuthenticationError(Exception):
 
 class AsphaltSession(ApplicationSession):
     def __init__(self, realm: str, auth_method: Optional[str], auth_id: Optional[str],
-                 auth_secret: Optional[str], debug: bool, join_future: Future):
+                 auth_secret: Optional[str], join_future: Future):
         super().__init__(ComponentConfig(realm))
-        self.debug_app = debug
         self.__auth_id = auth_id
         self.__auth_secret = auth_secret
         self.__auth_method = auth_method
@@ -90,8 +88,6 @@ class WAMPClient(EventSource):
     :param realm: the WAMP realm to join the application session to (defaults to the resource
         name if not specified)
     :param url: the websocket URL to connect to
-    :param call_defaults: default values for the ``timeout`` and ``disclose_me`` keyword arguments
-        to :meth:`call`
     :param registry: a WAMP registry or a string reference to one (defaults to creating a new
         instance if omitted)
     :param ssl_context: an SSL context or the name of an :class:`ssl.SSLContext` resource
@@ -102,34 +98,25 @@ class WAMPClient(EventSource):
         ``wampcra`` and ``ticket``)
     :param auth_id: authentication ID (username)
     :param auth_secret: secret to use for authentication (ticket or password)
-    :param debug_app: ``True`` to enable application level debugging
-    :param debug_factory: ``True`` to enable debugging of the client socket factory
-    :param debug_code_paths: ``True`` to enable debugging of code paths
 
     :ivar str realm: the WAMP realm
     :ivar str url: the WAMP URL
     """
 
-    def __init__(self, url: str, realm: str='default', *, call_defaults: Dict[str, Any]=None,
-                 registry: Union[WAMPRegistry, str]=None, ssl_context: SSLContext=None,
-                 serializer: Union[Serializer, str]=None, auth_method: str='anonymous',
-                 auth_id: str=None, auth_secret: str=None, debug_app: bool=False,
-                 debug_factory: bool=False, debug_code_paths: bool=False):
+    def __init__(self, url: str, realm: str='default', *, registry: Union[WAMPRegistry, str]=None,
+                 ssl_context: SSLContext=None, serializer: Union[Serializer, str]=None,
+                 auth_method: str='anonymous', auth_id: str=None, auth_secret: str=None):
         check_argument_types()
         super().__init__()
         self.context = None
         self.url = url
         self.realm = realm
-        self.call_defaults = call_defaults or {}
         self.registry = resolve_reference(registry) if registry is not None else WAMPRegistry()
         self.ssl_context = ssl_context
         self.serializer = serializer if serializer is not None else CBORSerializer()
         self.auth_method = auth_method
         self.auth_id = auth_id
         self.auth_secret = auth_secret
-        self.debug_app = debug_app
-        self.debug_factory = debug_factory
-        self.debug_code_paths = debug_code_paths
 
         self._lock = Lock()
         self._session = None  # type: AsphaltSession
@@ -231,7 +218,7 @@ class WAMPClient(EventSource):
 
     @asynchronous
     def publish(self, topic: str, *args, acknowledge: bool=False, exclude_me: bool=None,
-                exclude: Iterable[int]=None, eligible: Iterable[int]=None, disclose_me: bool=None,
+                exclude: Iterable[int]=None, eligible_sessions: Iterable[int]=None,
                 **kwargs) -> Optional[int]:
         """
         Publish an event on the given topic.
@@ -242,8 +229,7 @@ class WAMPClient(EventSource):
         :param exclude_me: ``False`` to have the router also send the event back to the sender if
             it has any matching subscriptions
         :param exclude: iterable of WAMP session IDs to exclude from receiving this event
-        :param eligible: list of WAMP session IDs eligible to receive this event
-        :param disclose_me: ``True`` to disclose the publisher's identity to the subscribers
+        :param eligible_sessions: list of WAMP session IDs eligible to receive this event
         :param kwargs: keyword arguments to pass to subscribers
         :return: publication ID (with ``acknowledge=True``)
 
@@ -252,10 +238,10 @@ class WAMPClient(EventSource):
         if self._session is None:
             yield from self.connect()
 
-        kwargs['options'] = PublishOptions(acknowledge=acknowledge, exclude_me=exclude_me,
-                                           exclude=list(exclude) if exclude else None,
-                                           eligible=list(eligible) if eligible else None,
-                                           disclose_me=disclose_me)
+        kwargs['options'] = PublishOptions(
+            acknowledge=acknowledge, exclude_me=exclude_me,
+            exclude=list(exclude) if exclude else None,
+            eligible=list(eligible_sessions) if eligible_sessions else None)
         retval = self._session.publish(topic, *args, **kwargs)
         if acknowledge:
             publication = yield from retval
@@ -263,7 +249,7 @@ class WAMPClient(EventSource):
 
     @asynchronous
     def call(self, endpoint: str, *args, on_progress: Callable[..., None]=None,
-             timeout: int=None, disclose_me: bool=None, **kwargs):
+             timeout: int=None, **kwargs):
         """
         Call an RPC function.
 
@@ -271,7 +257,6 @@ class WAMPClient(EventSource):
         :param args: positional arguments to call the endpoint with
         :param on_progress: a callable that will receive progress reports from the endpoint
         :param timeout: timeout (in seconds) to wait for the completion of the call
-        :param disclose_me: ``True`` to disclose the caller's identity to the callee
         :param kwargs: keyword arguments to call the endpoint with
         :return: the return value of the call
         :raises TimeoutError: if the call times out
@@ -281,12 +266,7 @@ class WAMPClient(EventSource):
         if self._session is None:
             yield from self.connect()
 
-        if timeout is None:
-            timeout = self.call_defaults.get('timeout')
-        if disclose_me is None:
-            disclose_me = self.call_defaults.get('disclose_me')
-
-        options = CallOptions(on_progress=on_progress, timeout=timeout, disclose_me=disclose_me)
+        options = CallOptions(on_progress=on_progress, timeout=timeout)
         return (yield from self._session.call(endpoint, *args, options=options, **kwargs))
 
     @asynchronous
@@ -313,13 +293,11 @@ class WAMPClient(EventSource):
                 ssl = (self.ssl_context or True) if is_secure else False
                 join_future = Future()
                 session_factory = partial(AsphaltSession, self.realm, self.auth_method,
-                                          self.auth_id, self.auth_secret, self.debug_app,
-                                          join_future)
+                                          self.auth_id, self.auth_secret, join_future)
                 serializers = [wrap_serializer(self.serializer)]
                 loop = txaio.config.loop = get_event_loop()
                 transport_factory = WampWebSocketClientFactory(
-                    session_factory, url=self.url, serializers=serializers, loop=loop,
-                    debug=self.debug_factory, debugCodePaths=self.debug_code_paths)
+                    session_factory, url=self.url, serializers=serializers, loop=loop)
                 transport, protocol = yield from loop.create_connection(
                     transport_factory, host, port, ssl=ssl)
 

@@ -36,7 +36,7 @@ class FileGetterComponent(ContainerComponent):
         local_path = Path(mkdtemp()) / Path(remote_path).name
         with local_path.open('wb') as outfile:
             yield from ctx.wamp.call('send_file', remote_path, on_progress=on_progress)
-        print('File saved as %s' % local_path)
+        print('\nFile saved as %s' % local_path)
 
         stop_event_loop()
 

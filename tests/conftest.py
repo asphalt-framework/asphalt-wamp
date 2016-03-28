@@ -12,6 +12,7 @@ pytest_plugins = ['asphalt.core.pytest_plugin']
 def ws_url():
     port = launch_adhoc_crossbar("""\
 ---
+version: 2
 workers:
 - type: router
   realms:
@@ -19,10 +20,14 @@ workers:
     roles:
     - name: authorized_users
       permissions:
-      - {call: true, publish: true, register: true, subscribe: true, uri: '*'}
+      - uri: ''
+        match: prefix
+        allow: {call: true, publish: true, register: true, subscribe: true}
     - name: anonymous
       permissions:
-      - {call: true, publish: true, register: true, subscribe: true, uri: '*'}
+      - uri: ''
+        match: prefix
+        allow: {call: true, publish: true, register: true, subscribe: true}
   transports:
   - type: websocket
     endpoint:
@@ -57,8 +62,7 @@ def setup_txaio():
 @pytest.yield_fixture
 def wampclient(request, event_loop, ws_url, setup_txaio):
     kwargs = getattr(request, 'param', {})
-    client = WAMPClient(ws_url, debug_app=True, debug_code_paths=True, debug_factory=True,
-                        **kwargs)
+    client = WAMPClient(ws_url, **kwargs)
     event_loop.run_until_complete(client.start(Context()))
     yield client
     event_loop.run_until_complete(client.disconnect())

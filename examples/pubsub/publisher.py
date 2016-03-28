@@ -23,7 +23,7 @@ class PublisherComponent(ContainerComponent):
         self.add_component('wamp', url='ws://localhost:56666')
         yield from super().start(ctx)
 
-        port, topic, message = sys.argv[1:]
+        topic, message = sys.argv[1:]
         yield from ctx.wamp.publish(topic, message)
 
         stop_event_loop()

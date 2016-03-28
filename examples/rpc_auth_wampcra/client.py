@@ -20,8 +20,7 @@ class RPCClientComponent(ContainerComponent):
                            auth_id='testclient', auth_secret='client123')
         yield from super().start(ctx)
 
-        # disclose_me=True lets the server figure out the caller's auth_id
-        result = yield from ctx.wamp.call('hello', disclose_me=True)
+        result = yield from ctx.wamp.call('hello')
         print('Server responded: {}'.format(result))
 
         stop_event_loop()

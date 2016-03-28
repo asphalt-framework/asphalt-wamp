@@ -34,10 +34,10 @@ setup(
     install_requires=[
         'asphalt >= 1.2, < 2.0',
         'asphalt-serialization[cbor] >= 1.1, < 2.0',
-        'autobahn >= 0.12.1'
+        'autobahn >= 0.13, < 0.14'
     ],
     extras_require={
-        'crossbar': 'crossbar >= 0.12.1'
+        'crossbar': 'crossbar >= 0.13'
     },
     entry_points={
         'asphalt.components': [

@@ -13,8 +13,7 @@ from asphalt.wamp.utils import launch_crossbar
 
 @coroutine
 def hello(ctx: CallContext):
-    session_info = yield from ctx.wamp.call('wamp.session.get', ctx.caller_session_id)
-    return 'Hello, {}!'.format(session_info['authid'])
+    return 'Hello, {}!'.format(ctx.caller_auth_id)
 
 
 class RPCServerComponent(ContainerComponent):
