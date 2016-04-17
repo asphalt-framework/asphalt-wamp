@@ -1,7 +1,6 @@
 from autobahn.wamp.types import CallDetails, SessionDetails, EventDetails
 
-from asphalt.core.context import Context
-from asphalt.core.concurrency import asynchronous
+from asphalt.core import Context
 
 
 class CallContext(Context):
@@ -27,7 +26,7 @@ class CallContext(Context):
                  call_details: CallDetails, **kwargs):
         super().__init__(parent, **kwargs)
         self.session_id = session_details.session
-        self.progress = asynchronous(call_details.progress) if call_details.progress else None
+        self.progress = call_details.progress
         self.caller_session_id = call_details.caller
         self.caller_auth_id = call_details.caller_authid
         self.caller_auth_role = call_details.caller_authrole

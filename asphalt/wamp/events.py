@@ -1,6 +1,6 @@
 from autobahn.wamp.types import SessionDetails, CloseDetails
 
-from asphalt.core.event import Event, EventSource
+from asphalt.core import Event, EventSource
 
 
 class SessionJoinEvent(Event):

@@ -20,7 +20,7 @@ def test_call_context():
     assert context.caller_auth_role == 'role'
     assert context.procedure == 'procedurename'
     assert context.enc_algo is None
-    assert context.progress.__wrapped__ is progress
+    assert context.progress is progress
 
 
 def test_event_context():

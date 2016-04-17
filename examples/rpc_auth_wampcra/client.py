@@ -4,25 +4,21 @@ It will make a call to the server that returns with a message containing the aut
 of this client.
 """
 
-from asyncio import coroutine
+import asyncio
 import logging
 
-from asphalt.core.component import ContainerComponent
-from asphalt.core.concurrency import stop_event_loop
-from asphalt.core.context import Context
-from asphalt.core.runner import run_application
+from asphalt.core import ContainerComponent, Context, run_application
 
 
 class RPCClientComponent(ContainerComponent):
-    @coroutine
-    def start(self, ctx: Context):
+    async def start(self, ctx: Context):
         self.add_component('wamp', url='ws://localhost:56666', auth_method='wampcra',
                            auth_id='testclient', auth_secret='client123')
-        yield from super().start(ctx)
+        await super().start(ctx)
 
-        result = yield from ctx.wamp.call('hello')
+        result = await ctx.wamp.call('hello')
         print('Server responded: {}'.format(result))
 
-        stop_event_loop()
+        asyncio.get_event_loop().stop()
 
 run_application(RPCClientComponent(), logging=logging.DEBUG)

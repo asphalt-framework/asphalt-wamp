@@ -5,8 +5,6 @@ import txaio
 from asphalt.wamp.utils import launch_adhoc_crossbar
 from asphalt.wamp.client import WAMPClient
 
-pytest_plugins = ['asphalt.core.pytest_plugin']
-
 
 @pytest.fixture(scope='session')
 def ws_url():

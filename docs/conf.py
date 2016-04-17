@@ -15,7 +15,7 @@ project = 'asphalt-wamp'
 author = 'Alex Grönholm'
 copyright = '2016, ' + author
 
-v = pkg_resources.get_distribution('asphalt-wamp').parsed_version
+v = pkg_resources.get_distribution(project).parsed_version
 version = v.base_version
 release = v.public
 
@@ -23,11 +23,12 @@ language = None
 
 exclude_patterns = ['_build']
 pygments_style = 'sphinx'
+highlight_language = 'python3'
 todo_include_todos = False
 
 html_theme = 'classic'
 html_static_path = ['_static']
-htmlhelp_basename = 'asphaltwampdoc'
+htmlhelp_basename = project.replace('-', '') + 'doc'
 
 intersphinx_mapping = {'python': ('http://docs.python.org/3/', None),
                        'asphalt': ('http://asphalt.readthedocs.org/en/latest/', None)}

@@ -4,14 +4,10 @@
 .. image:: https://coveralls.io/repos/asphalt-framework/asphalt-wamp/badge.svg?branch=master&service=github
   :target: https://coveralls.io/github/asphalt-framework/asphalt-wamp?branch=master
   :alt: Code Coverage
-.. image:: https://codeclimate.com/github/asphalt-framework/asphalt-wamp/badges/gpa.svg
-  :target: https://codeclimate.com/github/asphalt-framework/asphalt-wamp
-  :alt: Code Climate
 
-This is a component for the Asphalt framework that provides WAMP_
-(Web Application Message Protocol) integration.
+This Asphalt framework component provides a WAMP_ (Web Application Message Protocol) client.
 
-.. _WAMP: http://wamp-proto.org/
+It partially relies on the autobahn_ library.
 
 
 Project links
@@ -23,6 +19,8 @@ Project links
 * `Issue tracker`_
 
 
+.. _WAMP: http://wamp-proto.org/
+.. _autobahn:
 .. _Documentation: http://asphalt-wamp.readthedocs.org/en/latest/
 .. _Help and support: https://github.com/asphalt-framework/asphalt/wiki/Help-and-support
 .. _Source code: https://github.com/asphalt-framework/asphalt-wamp

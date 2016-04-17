@@ -1,10 +1,10 @@
-from collections import OrderedDict, namedtuple
+from collections import OrderedDict, namedtuple, Awaitable
 from inspect import isfunction
 from typing import Callable, Dict, Any, List, Union  # noqa
 
 from typeguard import check_argument_types
 
-from .utils import unwrap_function, validate_handler
+from asphalt.wamp.utils import unwrap_function, validate_handler
 
 __all__ = ('Procedure', 'Subscriber', 'WAMPRegistry')
 
@@ -58,12 +58,12 @@ class WAMPRegistry:
         self.subscriptions = []
         self.exceptions = OrderedDict()
 
-    def add_procedure(self, handler: Callable, name: str, *, match: str=None,
+    def add_procedure(self, handler: Callable[..., Awaitable], name: str, *, match: str=None,
                       invoke: str=None) -> Procedure:
         """
         Add a procedure handler.
 
-        The callable must be a coroutine. It will receive a
+        The callable must return an awaitable. It will receive a
         :class:`~asphalt.wamp.context.CallContext` instance as its first argument.
         The other positional and keyword arguments will be the arguments the caller passed to it.
 
@@ -72,8 +72,7 @@ class WAMPRegistry:
         :param match: one of ``exact``, ``prefix``, ``wildcard``
         :param invoke: one of ``single``, ``roundrobin``, ``random``, ``first``, ``last``
         :return: the procedure registration object
-        :raises TypeError: if the handler is not a coroutine or does not accept at least a single
-            positional argument
+        :raises TypeError: if the handler does not accept at least a single positional argument
         :raises ValueError: if there is already a handler registered for this endpoint
 
         .. seealso:: `How registrations work <http://crossbar.io/docs/How-Registrations-Work/>`_
@@ -92,7 +91,7 @@ class WAMPRegistry:
 
         return registration
 
-    def procedure(self, name: Union[str, Callable]=None, *, match: str=None,
+    def procedure(self, name: Union[str, Callable[..., Awaitable]]=None, *, match: str=None,
                   invoke: str=None) -> Callable:
         """
         Decorator version of :meth:`add_procedure`.
@@ -117,12 +116,13 @@ class WAMPRegistry:
 
         return wrapper
 
-    def add_subscriber(self, handler: Callable, topic: str, *, match: str=None) -> Subscriber:
+    def add_subscriber(self, handler: Callable[..., Awaitable], topic: str, *,
+                       match: str=None) -> Subscriber:
         """
         Decorator that registers a callable to receive events on the given topic.
 
-        The callable must be a coroutine. It will receive an
-        :class:`~asphalt.wamp.context.EventContext` instance as its first argument.
+        The callable  will receive an :class:`~asphalt.wamp.context.EventContext` instance as its
+        first argument and must return an awaitable.
         The other positional and keyword arguments will be the arguments the publisher passed to
         the ``publish()`` method.
 

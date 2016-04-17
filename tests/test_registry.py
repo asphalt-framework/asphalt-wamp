@@ -1,5 +1,3 @@
-from asyncio import coroutine
-
 import pytest
 
 from asphalt.wamp.registry import WAMPRegistry, Subscriber, Procedure
@@ -10,8 +8,7 @@ def registry():
     return WAMPRegistry()
 
 
-@coroutine
-def dummyhandler(ctx):
+async def dummyhandler(ctx):
     pass
 
 

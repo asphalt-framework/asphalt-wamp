@@ -1,9 +1,8 @@
 import asyncio
-import queue
 
-from autobahn.wamp.types import Challenge
-from asphalt.core.concurrency import blocking, asynchronous
 import pytest
+from asyncio_extras.threads import threadpool
+from autobahn.wamp.types import Challenge
 
 from asphalt.wamp.client import WAMPClient, AsphaltSession, AuthenticationError
 from asphalt.wamp.events import SessionJoinEvent, SessionLeaveEvent
@@ -37,15 +36,15 @@ class TestAsphaltSession:
 
 
 @pytest.mark.asyncio
-def test_client_events(wampclient: WAMPClient):
+async def test_client_events(wampclient: WAMPClient):
     def listener(event):
         events.append(event)
 
     events = []
     wampclient.add_listener('realm_joined', listener)
     wampclient.add_listener('realm_left', listener)
-    yield from wampclient.connect()
-    yield from wampclient.disconnect()
+    await wampclient.connect()
+    await wampclient.disconnect()
 
     assert len(events) == 2
     assert isinstance(events[0], SessionJoinEvent)
@@ -54,39 +53,46 @@ def test_client_events(wampclient: WAMPClient):
 
 @pytest.mark.parametrize('connect_first', [False, True])
 @pytest.mark.asyncio
-def test_call_async(wampclient: WAMPClient, connect_first):
+async def test_call(wampclient: WAMPClient, connect_first):
     if connect_first:
-        yield from wampclient.connect()
+        await wampclient.connect()
 
-    result = yield from wampclient.call('wamp.session.count')
+    result = await wampclient.call('wamp.session.count')
     assert result == 1
 
 
 @pytest.mark.asyncio
-def test_register_call_progress_async(wampclient: WAMPClient):
-    @asyncio.coroutine
-    def progressive_procedure(ctx, start, end):
+async def test_register_call_progress(wampclient: WAMPClient):
+    async def progressive_procedure(ctx, start, end):
         for value in range(start, end):
             ctx.progress(value)
         return end
 
     progress_values = []
-    yield from wampclient.register_procedure(progressive_procedure, 'test.progressive')
-    result = yield from wampclient.call('test.progressive', 2, 6,
-                                        on_progress=progress_values.append)
+    await wampclient.register_procedure(progressive_procedure, 'test.progressive')
+    result = await wampclient.call('test.progressive', 2, 6, on_progress=progress_values.append)
     assert progress_values == [2, 3, 4, 5]
     assert result == 6
 
 
 @pytest.mark.asyncio
-@blocking
-def test_register_call_blocking(wampclient: WAMPClient):
-    @blocking
+async def test_register_call_blocking(wampclient: WAMPClient):
+    @threadpool
     def add(ctx, x, y):
         return x + y
 
-    wampclient.register_procedure(add, 'test.add')
-    result = wampclient.call('test.add', 2, 3)
+    await wampclient.register_procedure(add, 'test.add')
+    result = await wampclient.call('test.add', 2, 3)
+    assert result == 5
+
+
+@pytest.mark.asyncio
+async def test_register_call_plain(wampclient: WAMPClient):
+    def add(ctx, x, y):
+        return x + y
+
+    await wampclient.register_procedure(add, 'test.add')
+    result = await wampclient.call('test.add', 2, 3)
     assert result == 5
 
 
@@ -94,9 +100,9 @@ def test_register_call_blocking(wampclient: WAMPClient):
     {'auth_method': 'wampcra', 'auth_id': 'testuser', 'auth_secret': 'testpass'}
 ], indirect=True)
 @pytest.mark.asyncio
-def test_auth_wampcra(wampclient: WAMPClient):
-    yield from wampclient.connect()
-    result = yield from wampclient.call('wamp.session.get', wampclient.session_id)
+async def test_auth_wampcra(wampclient: WAMPClient):
+    await wampclient.connect()
+    result = await wampclient.call('wamp.session.get', wampclient.session_id)
     assert result['authid'] == 'testuser'
 
 
@@ -104,9 +110,9 @@ def test_auth_wampcra(wampclient: WAMPClient):
     {'auth_method': 'ticket', 'auth_id': 'device1', 'auth_secret': 'abc123'}
 ], indirect=True)
 @pytest.mark.asyncio
-def test_auth_ticket(wampclient: WAMPClient):
-    yield from wampclient.connect()
-    result = yield from wampclient.call('wamp.session.get', wampclient.session_id)
+async def test_auth_ticket(wampclient: WAMPClient):
+    await wampclient.connect()
+    result = await wampclient.call('wamp.session.get', wampclient.session_id)
     assert result['authid'] == 'device1'
 
 
@@ -114,82 +120,65 @@ def test_auth_ticket(wampclient: WAMPClient):
     {'auth_method': 'ticket', 'auth_id': 'device1', 'auth_secret': 'abc124'}
 ], indirect=True)
 @pytest.mark.asyncio
-def test_auth_failure(wampclient: WAMPClient):
+async def test_auth_failure(wampclient: WAMPClient):
     with pytest.raises(AuthenticationError) as e:
-        yield from wampclient.connect()
+        await wampclient.connect()
 
     assert str(e.value) == 'ticket in static WAMP-Ticket authentication is invalid'
 
 
 @pytest.mark.asyncio
-def test_publish_autoconnect(wampclient: WAMPClient):
-    result = yield from wampclient.publish('test.topic', acknowledge=True)
+async def test_publish_autoconnect(wampclient: WAMPClient):
+    result = await wampclient.publish('test.topic', acknowledge=True)
     assert result
 
 
 @pytest.mark.parametrize('connect_first', [False, True])
 @pytest.mark.asyncio
-def test_publish_subscribe_async(wampclient: WAMPClient, connect_first):
-    @asynchronous
-    def subscriber(ctx, *args):
-        yield from q.put(args)
+async def test_publish_subscribe(wampclient: WAMPClient, connect_first):
+    async def subscriber(ctx, *args):
+        await q.put(args)
         raise Exception()
 
     q = asyncio.Queue()
     if connect_first:
-        yield from wampclient.connect()
+        await wampclient.connect()
 
-    yield from wampclient.subscribe(subscriber, 'test.topic')
-    publication_id = yield from wampclient.publish('test.topic', 2, 3, exclude_me=False,
-                                                   acknowledge=True)
+    await wampclient.subscribe(subscriber, 'test.topic')
+    publication_id = await wampclient.publish('test.topic', 2, 3, exclude_me=False,
+                                              acknowledge=True)
     assert isinstance(publication_id, int)
-    event = yield from asyncio.wait_for(q.get(), 2)
-    assert event == (2, 3)
-
-
-@pytest.mark.asyncio
-@blocking
-def test_publish_subscribe_blocking(wampclient: WAMPClient):
-    @blocking
-    def subscriber(ctx, *args):
-        q.put(args)
-
-    q = queue.Queue()
-    wampclient.subscribe(subscriber, 'test.topic')
-    publication_id = wampclient.publish('test.topic', 2, 3, exclude_me=False, acknowledge=True)
-    assert isinstance(publication_id, int)
-    event = q.get(timeout=2)
+    event = await asyncio.wait_for(q.get(), 2)
     assert event == (2, 3)
 
 
 @pytest.mark.parametrize('connect_first', [False, True])
 @pytest.mark.asyncio
-def test_map_exception(wampclient: WAMPClient, connect_first):
+async def test_map_exception(wampclient: WAMPClient, connect_first):
     class TestException(Exception):
         pass
 
-    @asyncio.coroutine
-    def error(ctx):
+    async def error(ctx):
         raise TestException
 
     if connect_first:
-        yield from wampclient.connect()
+        await wampclient.connect()
 
-    yield from wampclient.map_exception(TestException, 'test.exception')
-    yield from wampclient.register_procedure(error, 'test.error')
+    await wampclient.map_exception(TestException, 'test.exception')
+    await wampclient.register_procedure(error, 'test.error')
     with pytest.raises(TestException):
-        yield from wampclient.call('test.error')
+        await wampclient.call('test.error')
 
 
 @pytest.mark.asyncio
-def test_join_failure(wampclient: WAMPClient):
+async def test_join_failure(wampclient: WAMPClient):
     """
-    Tests that a failure in registering the registry's procedures causes the connection to be
+    Test that a failure in registering the registry's procedures causes the connection to be
     terminated.
 
     """
     with pytest.raises(AssertionError):
-        yield from wampclient.register_procedure(lambda ctx: None, 'blah', invoke='blabla')
+        await wampclient.register_procedure(lambda ctx: None, 'blah', invoke='blabla')
 
     assert wampclient.session_id is None
 

@@ -9,17 +9,17 @@ setup(
         'local_scheme': 'dirty-tag'
     },
     description='WAMP client component for the Asphalt framework',
-    long_description=Path(__file__).parent.joinpath('README.rst').open().read(),
+    long_description=Path(__file__).parent.joinpath('README.rst').read_text(),
     author='Alex Grönholm',
     author_email='alex.gronholm@nextday.fi',
     url='https://github.com/asphalt-framework/asphalt-wamp',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
+        'Environment :: Web Environment',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Topic :: Communications'
     ],
@@ -32,12 +32,12 @@ setup(
         'setuptools_scm >= 1.7.0'
     ],
     install_requires=[
-        'asphalt >= 1.2, < 2.0',
-        'asphalt-serialization[cbor] >= 1.1, < 2.0',
-        'autobahn >= 0.13, < 0.14'
+        'asphalt ~= 2.0',
+        'asphalt-serialization[cbor] ~= 1.1',
+        'autobahn >= 0.13.1, < 0.14'
     ],
     extras_require={
-        'crossbar': 'crossbar >= 0.13'
+        'crossbar': 'crossbar >= 0.13.1'
     },
     entry_points={
         'asphalt.components': [

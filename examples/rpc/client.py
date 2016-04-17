@@ -1,26 +1,23 @@
 """This example demonstrates how to make RPC calls with WAMP."""
 
-from asyncio import coroutine
+import asyncio
 import logging
 import sys
 
-from asphalt.core.component import ContainerComponent
-from asphalt.core.concurrency import stop_event_loop
-from asphalt.core.context import Context
-from asphalt.core.runner import run_application
+from asphalt.core import ContainerComponent, Context, run_application
 
 
 class RPCClientComponent(ContainerComponent):
-    @coroutine
-    def start(self, ctx: Context):
+    async def start(self, ctx: Context):
         self.add_component('wamp', url='ws://localhost:56666')
-        yield from super().start(ctx)
+        await super().start(ctx)
 
         message = sys.argv[1]
-        result = yield from ctx.wamp.call('uppercase', message)
+        result = await ctx.wamp.call('uppercase', message)
         print('{!r} translated to upper case is {!r}'.format(message, result))
 
-        stop_event_loop()
+        asyncio.get_event_loop().stop()
+
 
 if len(sys.argv) < 2:
     print('Usage: {} <text>'.format(sys.argv[0]), file=sys.stderr)

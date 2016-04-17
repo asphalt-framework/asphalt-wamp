@@ -5,28 +5,24 @@ First start subscriber.py and take note of which port it's running on.
 You will need to give this port number as the first argument to this script.
 """
 
-from asyncio import coroutine
+import asyncio
 import logging
 import sys
 
-from asphalt.core.component import ContainerComponent
-from asphalt.core.concurrency import stop_event_loop
-from asphalt.core.context import Context
-from asphalt.core.runner import run_application
+from asphalt.core import ContainerComponent, Context, run_application
 
 logger = logging.getLogger(__name__)
 
 
 class PublisherComponent(ContainerComponent):
-    @coroutine
-    def start(self, ctx: Context):
+    async def start(self, ctx: Context):
         self.add_component('wamp', url='ws://localhost:56666')
-        yield from super().start(ctx)
+        await super().start(ctx)
 
         topic, message = sys.argv[1:]
-        yield from ctx.wamp.publish(topic, message)
+        await ctx.wamp.publish(topic, message)
 
-        stop_event_loop()
+        asyncio.get_event_loop().stop()
 
 if len(sys.argv) < 3:
     print('Usage: {} <topic> <message>'.format(sys.argv[0]), file=sys.stderr)

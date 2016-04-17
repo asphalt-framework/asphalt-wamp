@@ -50,7 +50,7 @@ def launch_crossbar(directory: Union[str, PurePath]) -> None:
 
     # Read output until a line is found that confirms the transport is ready
     for line in process.stdout:
-        if b"transport 'transport1' started" in line:
+        if b"transport 'transport-001' started" in line:
             atexit.register(process.terminate)
             return
 
