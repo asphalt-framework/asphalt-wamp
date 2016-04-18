@@ -9,16 +9,17 @@ import logging
 
 from asphalt.core import ContainerComponent, Context, run_application
 
+logger = logging.getLogger(__name__)
+
 
 class RPCClientComponent(ContainerComponent):
     async def start(self, ctx: Context):
-        self.add_component('wamp', url='ws://localhost:56666', auth_method='ticket',
+        self.add_component('wamp', url='ws://localhost:8080', auth_method='ticket',
                            auth_id='testclient', auth_secret='client123')
         await super().start(ctx)
 
         result = await ctx.wamp.call('hello')
-        print('Server responded: {}'.format(result))
-
+        logger.info('Server responded: %s', result)
         asyncio.get_event_loop().stop()
 
-run_application(RPCClientComponent(), logging=logging.DEBUG)
+run_application(RPCClientComponent(), logging=logging.INFO)

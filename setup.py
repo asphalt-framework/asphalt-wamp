@@ -34,11 +34,8 @@ setup(
     install_requires=[
         'asphalt ~= 2.0',
         'asphalt-serialization[cbor] ~= 1.1',
-        'autobahn >= 0.13.1, < 0.14'
+        'autobahn ~= 0.13.1'
     ],
-    extras_require={
-        'crossbar': 'crossbar >= 0.13.1'
-    },
     entry_points={
         'asphalt.components': [
             'wamp = asphalt.wamp.component:WAMPComponent'

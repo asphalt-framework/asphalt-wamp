@@ -31,7 +31,7 @@ class RPCServerComponent(ContainerComponent):
         crossbar_dir = Path(__name__).parent / '.crossbar'
         launch_crossbar(crossbar_dir)
 
-        self.add_component('wamp', url='ws://localhost:56666', registry=registry)
+        self.add_component('wamp', url='ws://localhost:8080', registry=registry)
         await super().start(ctx)
 
-run_application(RPCServerComponent(), logging=logging.DEBUG)
+run_application(RPCServerComponent(), logging=logging.INFO)

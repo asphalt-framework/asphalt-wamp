@@ -7,11 +7,9 @@ You will need to give this port number as the first argument to this script.
 
 import logging
 import sys
-from pathlib import Path
 
 from asphalt.core import ContainerComponent, Context, run_application
 from asphalt.wamp.context import EventContext
-from asphalt.wamp.utils import launch_crossbar
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +20,7 @@ def subscriber(ctx: EventContext, message: str):
 
 class PublisherComponent(ContainerComponent):
     async def start(self, ctx: Context):
-        crossbar_dir = Path(__name__).parent / '.crossbar'
-        launch_crossbar(crossbar_dir)
-
-        self.add_component('wamp', url='ws://localhost:56666')
+        self.add_component('wamp', url='ws://localhost:8080')
         await super().start(ctx)
 
         topic = sys.argv[1]
@@ -36,4 +31,4 @@ if len(sys.argv) < 2:
     print('Usage: {} <topic>'.format(sys.argv[0]), file=sys.stderr)
     sys.exit(1)
 
-run_application(PublisherComponent(), logging=logging.DEBUG)
+run_application(PublisherComponent(), logging=logging.INFO)

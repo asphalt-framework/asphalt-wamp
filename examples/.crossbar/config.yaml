@@ -1,0 +1,57 @@
+---
+version: 2
+workers:
+- type: router
+  realms:
+  - name: default
+    roles:
+    - name: public
+      permissions:
+      - uri: ""
+        match: prefix
+        allow: {call: true, publish: true, register: true, subscribe: true}
+    - name: ticket_client
+      permissions:
+      - uri: ""
+        match: prefix
+        allow: {call: true, publish: false, register: false, subscribe: true}
+        disclose: {caller: true}
+    - name: wampcra_client
+      permissions:
+      - uri: ""
+        match: prefix
+        allow: {call: true, publish: false, register: false, subscribe: true}
+        disclose: {caller: true}
+    - name: server
+      permissions:
+      - uri: ""
+        match: prefix
+        allow: {call: true, publish: true, register: true, subscribe: true}
+  transports:
+  - type: websocket
+    endpoint:
+      type: tcp
+      interface: localhost
+      port: 8080
+    auth:
+      anonymous:
+        type: static
+        role: public
+      ticket:
+        type: static
+        principals:
+          testserver:
+            ticket: server123
+            role: server
+          testclient:
+            ticket: client123
+            role: ticket_client
+      wampcra:
+        type: static
+        users:
+          testserver:
+            secret: server123
+            role: server
+          testclient:
+            secret: client123
+            role: wampcra_client

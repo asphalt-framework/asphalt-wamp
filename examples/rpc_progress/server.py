@@ -33,10 +33,7 @@ async def send_file(ctx: CallContext, path: str):
 
 class FileServerComponent(ContainerComponent):
     async def start(self, ctx: Context):
-        crossbar_dir = Path(__name__).parent / '.crossbar'
-        launch_crossbar(crossbar_dir)
-
-        self.add_component('wamp', url='ws://localhost:56666')
+        self.add_component('wamp', url='ws://localhost:8080')
         await super().start(ctx)
 
         ctx.base_path = Path(sys.argv[1])
@@ -46,4 +43,4 @@ if len(sys.argv) < 2:
     print('Usage: {} <base directory>'.format(sys.argv[0]), file=sys.stderr)
     sys.exit(1)
 
-run_application(FileServerComponent(), logging=logging.DEBUG)
+run_application(FileServerComponent(), logging=logging.INFO)
