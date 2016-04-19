@@ -6,14 +6,13 @@ Running the examples
 The examples in this directory tree require a running Crossbar_ instance with a specific
 configuration. The ``.crossbar`` subdirectory contains a customized Crossbar configuration file
 that will allow all the examples to work as intended. To use this configuration, start Crossbar
-from the ``examples`` directory::
+from the ``examples`` directory (assuming the ``crossbar`` command is on your ``PATH``)::
 
     crossbar start
 
-If you're running Crossbar through Docker, you can use the customized configuration like this::
+If have Docker_ installed locally, you can instead use this script to launch it::
 
-    docker run --rm -p 8080:8080 -v \
-    $PWD/.crossbar/config.yaml:/var/crossbar/.crossbar/crossbar.yaml:ro crossbario/crossbar \
-    --config /var/crossbar/.crossbar/crossbar.yaml
+    ./crossbar-docker.sh
 
 .. _Crossbar: http://crossbar.io/
+.. _Docker: https://www.docker.com/

@@ -31,7 +31,6 @@ workers:
   - type: websocket
     endpoint:
       type: tcp
-      interface: localhost
       port: 8080
     auth:
       anonymous:
