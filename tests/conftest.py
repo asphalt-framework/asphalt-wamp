@@ -3,7 +3,6 @@ import subprocess
 import sysconfig
 
 import pytest
-import txaio
 
 from asphalt.core.context import Context
 from asphalt.wamp.client import WAMPClient
@@ -43,13 +42,8 @@ def crossbar(virtualenv):
     process.terminate()
 
 
-@pytest.fixture(scope='session')
-def setup_txaio():
-    txaio.use_asyncio()
-
-
 @pytest.yield_fixture
-def wampclient(request, event_loop, crossbar, setup_txaio):
+def wampclient(request, event_loop, crossbar):
     kwargs = getattr(request, 'param', {})
     client = WAMPClient('ws://localhost:8090/', **kwargs)
     event_loop.run_until_complete(client.start(Context()))
