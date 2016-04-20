@@ -24,6 +24,14 @@ def test_procedure(registry: WAMPRegistry, use_decorator):
     assert registry.procedures == {'procedurename': expected}
 
 
+def test_procedure_bad_argument_count(registry: WAMPRegistry):
+    def invalid_procedure_handler():
+        pass
+
+    exc = pytest.raises(TypeError, registry.add_procedure, invalid_procedure_handler, 'procedure')
+    assert str(exc.value) == 'procedure handler must accept at least one positional argument'
+
+
 def test_procedure_simple_decorator(registry: WAMPRegistry):
     registry.procedure(dummyhandler)
     expected = Procedure('dummyhandler', dummyhandler, registry.procedure_defaults)
@@ -46,6 +54,14 @@ def test_subscriber(registry: WAMPRegistry, use_decorator):
         registry.add_subscriber(dummyhandler, 'topic', **options)
 
     assert registry.subscriptions == [Subscriber('topic', dummyhandler, options)]
+
+
+def test_subscriber_argument_count(registry: WAMPRegistry):
+    def invalid_subscriber():
+        pass
+
+    exc = pytest.raises(TypeError, registry.add_subscriber, invalid_subscriber, 'topic')
+    assert str(exc.value) == 'subscriber must accept at least one positional argument'
 
 
 @pytest.mark.parametrize('use_decorator', [False, True])

@@ -1,15 +1,20 @@
+import inspect
 from collections import OrderedDict, namedtuple, Awaitable
-from inspect import isfunction
-from typing import Callable, Dict, Any, List, Union  # noqa
+from typing import Callable, Dict, Any, Union  # noqa
 
 from typeguard import check_argument_types
-
-from asphalt.wamp.utils import unwrap_function, validate_handler
 
 __all__ = ('Procedure', 'Subscriber', 'WAMPRegistry')
 
 Procedure = namedtuple('Procedure', ['name', 'handler', 'options'])
 Subscriber = namedtuple('Subscriber', ['topic', 'handler', 'options'])
+
+
+def _validate_handler(handler: Callable, kind: str) -> None:
+    spec = inspect.getfullargspec(handler)
+    min_args = 2 if inspect.ismethod(handler) else 1
+    if not spec.varargs and len(spec.args) < min_args:
+        raise TypeError('{} must accept at least one positional argument'.format(kind))
 
 
 class WAMPRegistry:
@@ -58,7 +63,7 @@ class WAMPRegistry:
         self.subscriptions = []
         self.exceptions = OrderedDict()
 
-    def add_procedure(self, handler: Callable[..., Awaitable], name: str, *, match: str=None,
+    def add_procedure(self, handler: Callable, name: str, *, match: str=None,
                       invoke: str=None) -> Procedure:
         """
         Add a procedure handler.
@@ -82,6 +87,7 @@ class WAMPRegistry:
 
         """
         assert check_argument_types()
+        _validate_handler(handler, 'procedure handler')
         options = {'match': match or self.procedure_defaults['match'],
                    'invoke': invoke or self.procedure_defaults['invoke']}
         name = self.prefix + name
@@ -91,7 +97,7 @@ class WAMPRegistry:
 
         return registration
 
-    def procedure(self, name: Union[str, Callable[..., Awaitable]]=None, *, match: str=None,
+    def procedure(self, name: Union[str, Callable]=None, *, match: str=None,
                   invoke: str=None) -> Callable:
         """
         Decorator version of :meth:`add_procedure`.
@@ -106,11 +112,10 @@ class WAMPRegistry:
 
         """
         def wrapper(handler: Callable):
-            unwrapped = unwrap_function(handler)
-            self.add_procedure(handler, name or unwrapped.__name__, match=match, invoke=invoke)
+            self.add_procedure(handler, name or handler.__name__, match=match, invoke=invoke)
             return handler
 
-        if isfunction(name):
+        if inspect.isfunction(name):
             handler, name = name, None
             return wrapper(handler)
 
@@ -141,7 +146,7 @@ class WAMPRegistry:
 
         """
         assert check_argument_types()
-        validate_handler(handler, 'subscriber')
+        _validate_handler(handler, 'subscriber')
         options = {'match': match or self.subscription_defaults['match']}
         subscription = Subscriber(topic, handler, options)
         self.subscriptions.append(subscription)
