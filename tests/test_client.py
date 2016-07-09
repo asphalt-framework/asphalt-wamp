@@ -41,8 +41,8 @@ async def test_client_events(wampclient: WAMPClient):
         events.append(event)
 
     events = []
-    wampclient.add_listener('realm_joined', listener)
-    wampclient.add_listener('realm_left', listener)
+    wampclient.realm_joined.connect(listener)
+    wampclient.realm_left.connect(listener)
     await wampclient.connect()
     await wampclient.disconnect()
 

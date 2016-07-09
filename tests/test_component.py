@@ -12,15 +12,15 @@ from asphalt.wamp.component import WAMPComponent
 @pytest.mark.asyncio
 async def test_single_client(event_loop):
     ctx = Context()
-    component = WAMPComponent(ssl_context='default', serializer='default')
+    component = WAMPComponent(ssl='default', serializer='default')
     ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     serializer = JSONSerializer()
-    await ctx.publish_resource(serializer, types=[Serializer])
-    await ctx.publish_resource(ssl_context)
+    ctx.publish_resource(serializer, types=[Serializer])
+    ctx.publish_resource(ssl_context)
     await component.start(ctx)
 
     assert isinstance(ctx.wamp, WAMPClient)
-    assert ctx.wamp.ssl_context is ssl_context
+    assert ctx.wamp.ssl is ssl_context
     assert ctx.wamp.serializer is serializer
 
 

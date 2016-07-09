@@ -46,8 +46,8 @@ class WAMPRegistry:
     __slots__ = ('prefix', 'procedure_defaults', 'subscription_defaults', 'procedures',
                  'subscriptions', 'exceptions')
 
-    def __init__(self, prefix: str='', *, procedure_defaults: Dict[str, Any]=None,
-                 subscription_defaults: Dict[str, Any]=None):
+    def __init__(self, prefix: str = '', *, procedure_defaults: Dict[str, Any] = None,
+                 subscription_defaults: Dict[str, Any] = None):
         assert check_argument_types()
         if prefix and not prefix.endswith('.'):
             prefix += '.'
@@ -63,8 +63,8 @@ class WAMPRegistry:
         self.subscriptions = []
         self.exceptions = OrderedDict()
 
-    def add_procedure(self, handler: Callable, name: str, *, match: str=None,
-                      invoke: str=None) -> Procedure:
+    def add_procedure(self, handler: Callable, name: str, *, match: str = None,
+                      invoke: str = None) -> Procedure:
         """
         Add a procedure handler.
 
@@ -97,8 +97,8 @@ class WAMPRegistry:
 
         return registration
 
-    def procedure(self, name: Union[str, Callable]=None, *, match: str=None,
-                  invoke: str=None) -> Callable:
+    def procedure(self, name: Union[str, Callable] = None, *, match: str = None,
+                  invoke: str = None) -> Callable:
         """
         Decorator version of :meth:`add_procedure`.
 
@@ -122,7 +122,7 @@ class WAMPRegistry:
         return wrapper
 
     def add_subscriber(self, handler: Callable[..., Awaitable], topic: str, *,
-                       match: str=None) -> Subscriber:
+                       match: str = None) -> Subscriber:
         """
         Decorator that registers a callable to receive events on the given topic.
 
@@ -152,7 +152,7 @@ class WAMPRegistry:
         self.subscriptions.append(subscription)
         return subscription
 
-    def subscriber(self, topic: str, *, match: str=None) -> Callable:
+    def subscriber(self, topic: str, *, match: str = None) -> Callable:
         """
         Decorator version of :meth:`add_subscriber`.
 
@@ -198,7 +198,7 @@ class WAMPRegistry:
 
         return wrapper
 
-    def add_from(self, registry: 'WAMPRegistry', prefix: str='') -> None:
+    def add_from(self, registry: 'WAMPRegistry', prefix: str = '') -> None:
         """
         Add all the procedures, subscribers and exception mappings from another registry to this
         one.

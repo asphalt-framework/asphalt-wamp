@@ -9,7 +9,7 @@ setup(
         'local_scheme': 'dirty-tag'
     },
     description='WAMP client component for the Asphalt framework',
-    long_description=Path(__file__).parent.joinpath('README.rst').read_text(),
+    long_description=Path(__file__).with_name('README.rst').read_text('utf-8'),
     author='Alex Grönholm',
     author_email='alex.gronholm@nextday.fi',
     url='https://github.com/asphalt-framework/asphalt-wamp',
@@ -33,8 +33,8 @@ setup(
     ],
     install_requires=[
         'asphalt ~= 2.0',
-        'asphalt-serialization[cbor] ~= 1.1',
-        'autobahn ~= 0.13.1'
+        'asphalt-serialization[cbor] ~= 3.0',
+        'autobahn ~= 0.15'
     ],
     entry_points={
         'asphalt.components': [

@@ -30,7 +30,7 @@ class SerializerWrapper(autobahn.Serializer):
 def wrap_serializer(serializer: Serializer):
     if serializer.mimetype == 'application/json':
         return SerializerWrapper(serializer, 'json', 1, False)
-    elif serializer.mimetype == 'application/x-msgpack':
+    elif serializer.mimetype == 'application/msgpack':
         return SerializerWrapper(serializer, 'msgpack', 2, True)
     elif serializer.mimetype == 'application/cbor':
         return SerializerWrapper(serializer, 'cbor', 3, True)

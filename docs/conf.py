@@ -5,7 +5,9 @@ import pkg_resources
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
-    'sphinx_autodoc_typehints'
+    'sphinx_autodoc_typehints',
+    'sphinxcontrib.asyncio'
+
 ]
 
 templates_path = ['_templates']
@@ -30,5 +32,7 @@ html_theme = 'classic'
 html_static_path = ['_static']
 htmlhelp_basename = project.replace('-', '') + 'doc'
 
-intersphinx_mapping = {'python': ('http://docs.python.org/3/', None),
-                       'asphalt': ('http://asphalt.readthedocs.org/en/latest/', None)}
+intersphinx_mapping = {
+    'python': ('http://docs.python.org/3/', None),
+    'asphalt': ('http://asphalt.readthedocs.org/en/latest/', None),
+    'asphalt-serialization': ('http://asphalt-serialization.readthedocs.org/en/latest/', None)}

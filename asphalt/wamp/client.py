@@ -1,4 +1,5 @@
-from asyncio import wait, wait_for, Future, Lock, get_event_loop, FIRST_EXCEPTION
+from asyncio import wait, wait_for, Future, get_event_loop, FIRST_EXCEPTION
+from functools import partial
 from inspect import isawaitable
 from ssl import SSLContext
 from typing import Callable, Iterable, Optional, Union
@@ -11,10 +12,9 @@ from autobahn.wamp.types import (
     ComponentConfig, SessionDetails, EventDetails, CallDetails, PublishOptions, CallOptions,
     CloseDetails, Challenge, SubscribeOptions, RegisterOptions)
 from autobahn.websocket.util import parse_url
-from functools import partial
 from typeguard import check_argument_types
 
-from asphalt.core import Context, EventSource, resolve_reference, register_topic
+from asphalt.core import Context, resolve_reference, Signal
 from asphalt.serialization.api import Serializer
 from asphalt.serialization.serializers.cbor import CBORSerializer
 from asphalt.wamp.context import CallContext, EventContext
@@ -25,7 +25,11 @@ from asphalt.wamp.serializers import wrap_serializer
 __all__ = ('AuthenticationError', 'WAMPClient')
 
 
-class AuthenticationError(Exception):
+class WAMPError(Exception):
+    pass
+
+
+class AuthenticationError(WAMPError):
     """Raised when authentication against the WAMP router fails."""
 
     def __init__(self, reason: str):
@@ -56,6 +60,12 @@ class AsphaltSession(ApplicationSession):
             self.__join_future.set_exception(exc)
             self.__join_future = None
 
+    def onDisconnect(self):
+        if self.__join_future:
+            exc = WAMPError('connection closed unexpectedly')
+            self.__join_future.set_exception(exc)
+            self.__join_future = None
+
     def onChallenge(self, challenge: Challenge):
         if challenge.method != self.__auth_method:
             raise Exception('Expected authentication method "{}" but received a "{}" challenge '
@@ -73,25 +83,22 @@ class AsphaltSession(ApplicationSession):
             return self.__auth_secret
 
 
-@register_topic('realm_joined', SessionJoinEvent)
-@register_topic('realm_left', SessionLeaveEvent)
-class WAMPClient(EventSource):
+class WAMPClient:
     """
     A WAMP client.
-
-    Supported events:
-
-    * ``realm_joined`` (:class:`~asphalt.wamp.events.SessionJoinEvent`): the client has joined
-      the realm and has registered any procedures and subscribers on its assigned router
-    * ``realm_left`` (:class:`~asphalt.wamp.events.SessionLeaveEvent`): the client has left
-      the realm
 
     :param realm: the WAMP realm to join the application session to (defaults to the resource
         name if not specified)
     :param url: the websocket URL to connect to
     :param registry: a WAMP registry or a string reference to one (defaults to creating a new
         instance if omitted)
-    :param ssl_context: an SSL context or the name of an :class:`ssl.SSLContext` resource
+    :param ssl: one of the following:
+
+        * ``False`` to disable SSL
+        * ``True`` to enable SSL using the default context
+        * an :class:`ssl.SSLContext` instance
+        * a ``module:varname`` reference to an :class:`~ssl.SSLContext` instance
+        * name of an :class:`ssl.SSLContext` resource
     :param serializer: a serializer instance or the name of a
         :class:`asphalt.serialization.api.Serializer` resource (defaults to creating a new
         :class:`~asphalt.serialization.cbor.CBORSerializer` if omitted)
@@ -100,32 +107,42 @@ class WAMPClient(EventSource):
     :param auth_id: authentication ID (username)
     :param auth_secret: secret to use for authentication (ticket or password)
 
+    :ivar Signal realm_joined: a signal (:class:`~asphalt.wamp.events.SessionJoinEvent`) dispatched
+        when the client has joined the realm and has registered any procedures and subscribers on
+        the router
+    :ivar Signal realm_left: a signal (:class:`~asphalt.wamp.events.SessionLeaveEvent`) dispatched
+        when the client has left the realm
     :ivar str realm: the WAMP realm
     :ivar str url: the WAMP URL
+    :ivar WAMPRegistry register: the root registry object
     """
 
-    def __init__(self, url: str, realm: str='default', *, registry: Union[WAMPRegistry, str]=None,
-                 ssl_context: SSLContext=None, serializer: Union[Serializer, str]=None,
-                 auth_method: str='anonymous', auth_id: str=None, auth_secret: str=None):
-        check_argument_types()
+    realm_joined = Signal(SessionJoinEvent)
+    realm_left = Signal(SessionLeaveEvent)
+
+    def __init__(self, url: str, realm: str = 'default', *,
+                 registry: Union[WAMPRegistry, str] = None,
+                 ssl: Union[bool, str, SSLContext] = False,
+                 serializer: Union[Serializer, str] = None, auth_method: str = 'anonymous',
+                 auth_id: str = None, auth_secret: str = None):
+        assert check_argument_types()
         super().__init__()
-        self.context = None
         self.url = url
         self.realm = realm
-        self.registry = resolve_reference(registry) if registry is not None else WAMPRegistry()
-        self.ssl_context = ssl_context
-        self.serializer = serializer if serializer is not None else CBORSerializer()
+        self.registry = resolve_reference(registry) or WAMPRegistry()
+        self.ssl = resolve_reference(ssl)
+        self.serializer = resolve_reference(serializer) or CBORSerializer({'value_sharing': False})
         self.auth_method = auth_method
         self.auth_id = auth_id
         self.auth_secret = auth_secret
 
-        self._lock = Lock()
+        self._context = None
         self._session = None  # type: AsphaltSession
         self._session_details = None  # type: SessionDetails
 
     async def _register(self, procedure: Procedure):
         async def wrapper(*args, _call_details: CallDetails, **kwargs):
-            async with CallContext(self.context, self._session_details, _call_details) as ctx:
+            async with CallContext(self._context, self._session_details, _call_details) as ctx:
                 retval = procedure.handler(ctx, *args, **kwargs)
                 if isawaitable(retval):
                     retval = await retval
@@ -137,7 +154,7 @@ class WAMPClient(EventSource):
 
     async def _subscribe(self, subscriber: Subscriber):
         async def wrapper(*args, _event_details: EventDetails, **kwargs):
-            async with EventContext(self.context, self._session_details, _event_details) as ctx:
+            async with EventContext(self._context, self._session_details, _event_details) as ctx:
                 retval = subscriber.handler(ctx, *args, **kwargs)
                 if isawaitable(retval):
                     await retval
@@ -146,9 +163,11 @@ class WAMPClient(EventSource):
         await self._session.subscribe(wrapper, subscriber.topic, options)
 
     async def start(self, ctx: Context):
-        self.context = ctx
-        if isinstance(self.ssl_context, str):
-            self.ssl_context = await ctx.request_resource(SSLContext, self.ssl_context)
+        self._context = ctx
+        if isinstance(self.ssl, str):
+            self.ssl = await ctx.request_resource(SSLContext, self.ssl)
+        if isinstance(self.registry, str):
+            self.registry = await ctx.request_resource(WAMPRegistry, self.registry)
         if isinstance(self.serializer, str):
             self.serializer = await ctx.request_resource(Serializer, self.serializer)
 
@@ -176,11 +195,12 @@ class WAMPClient(EventSource):
             :meth:`~.registry.WAMPRegistry.add_procedure`
 
         """
-        procedure = self.registry.add_procedure(handler, name, **options)
+        assert check_argument_types()
         if self._session is None:
-            await self.connect()  # this will automatically register the procedure
-        else:
-            await self._register(procedure)
+            await self.connect()
+
+        procedure = self.registry.add_procedure(handler, name, **options)
+        await self._register(procedure)
 
     async def subscribe(self, handler: Callable, topic: str, **options) -> None:
         """
@@ -192,14 +212,15 @@ class WAMPClient(EventSource):
             :meth:`~.registry.WAMPRegistry.add_subscriber`
 
         """
-        subscriber = self.registry.add_subscriber(handler, topic, **options)
+        assert check_argument_types()
         if self._session is None:
             await self.connect()  # this will automatically register the subscriber
-        else:
-            await self._subscribe(subscriber)
 
-    async def publish(self, topic: str, *args, acknowledge: bool=False, exclude_me: bool=None,
-                      exclude: Iterable[int]=None, eligible_sessions: Iterable[int]=None,
+        subscriber = self.registry.add_subscriber(handler, topic, **options)
+        await self._subscribe(subscriber)
+
+    async def publish(self, topic: str, *args, acknowledge: bool = False, exclude_me: bool = None,
+                      exclude: Iterable[int] = None, eligible_sessions: Iterable[int] = None,
                       **kwargs) -> Optional[int]:
         """
         Publish an event on the given topic.
@@ -228,8 +249,8 @@ class WAMPClient(EventSource):
             publication = await retval
             return publication.id
 
-    async def call(self, endpoint: str, *args, on_progress: Callable[..., None]=None,
-                   timeout: int=None, **kwargs):
+    async def call(self, endpoint: str, *args, on_progress: Callable[..., None] = None,
+                   timeout: int = None, **kwargs):
         """
         Call an RPC function.
 
@@ -260,55 +281,53 @@ class WAMPClient(EventSource):
         """
         async def leave_callback(session: AsphaltSession, leave_details: CloseDetails):
             self._session = self._session_details = None
-            await self.dispatch_event('realm_left', leave_details)
+            self.realm_left.dispatch(leave_details)
 
-        async with self._lock:
-            if self._session is None:
-                is_secure, host, port = parse_url(self.url)[:3]
-                ssl = (self.ssl_context or True) if is_secure else False
-                join_future = Future()
-                session_factory = partial(AsphaltSession, self.realm, self.auth_method,
-                                          self.auth_id, self.auth_secret, join_future)
-                serializers = [wrap_serializer(self.serializer)]
-                loop = txaio.config.loop = get_event_loop()
-                transport_factory = WampWebSocketClientFactory(
-                    session_factory, url=self.url, serializers=serializers, loop=loop)
-                transport, protocol = await loop.create_connection(
-                    transport_factory, host, port, ssl=ssl)
+        is_secure, host, port = parse_url(self.url)[:3]
+        ssl = (self.ssl or True) if is_secure else False
+        join_future = Future()
+        session_factory = partial(AsphaltSession, self.realm, self.auth_method,
+                                  self.auth_id, self.auth_secret, join_future)
+        serializers = [wrap_serializer(self.serializer)]
+        loop = txaio.config.loop = get_event_loop()
+        transport_factory = WampWebSocketClientFactory(
+            session_factory, url=self.url, serializers=serializers, loop=loop)
+        transport, protocol = await loop.create_connection(
+            transport_factory, host, port, ssl=ssl)
 
-                try:
-                    # Connection established; wait for the session to join the realm
-                    self._session_details = await wait_for(join_future, 10, loop=loop)
-                    self._session = protocol._session
-                except Exception:
-                    transport.close()
-                    raise
+        try:
+            # Connection established; wait for the session to join the realm
+            self._session_details = await wait_for(join_future, 10, loop=loop)
+            self._session = protocol._session
+        except Exception:
+            transport.close()
+            raise
 
-                try:
-                    # Register exception mappings with the session
-                    for error, exc_type in self.registry.exceptions.items():
-                        self._session.define(exc_type, error)
+        try:
+            # Register exception mappings with the session
+            for error, exc_type in self.registry.exceptions.items():
+                self._session.define(exc_type, error)
 
-                    # Register procedures and subscribers with the session
-                    tasks = [loop.create_task(self._subscribe(subscriber)) for
-                             subscriber in self.registry.subscriptions]
-                    tasks += [loop.create_task(self._register(procedure)) for
-                              procedure in self.registry.procedures.values()]
-                    if tasks:
-                        done, not_done = await wait(tasks, loop=loop, timeout=10,
-                                                    return_when=FIRST_EXCEPTION)
-                        for task in done:
-                            if task.exception():
-                                raise task.exception()
-                except Exception:
-                    await self._session.leave()
-                    self._session = self._session_details = None
-                    raise
+            # Register procedures and subscribers with the session
+            tasks = [loop.create_task(self._subscribe(subscriber)) for
+                     subscriber in self.registry.subscriptions]
+            tasks += [loop.create_task(self._register(procedure)) for
+                      procedure in self.registry.procedures.values()]
+            if tasks:
+                done, not_done = await wait(tasks, loop=loop, timeout=10,
+                                            return_when=FIRST_EXCEPTION)
+                for task in done:
+                    if task.exception():
+                        raise task.exception()
+        except Exception:
+            await self._session.leave()
+            self._session = self._session_details = None
+            raise
 
-                self._session.on('leave', leave_callback)
+        self._session.on('leave', leave_callback)
 
-                # Notify listeners that we've joined the realm
-                await self.dispatch_event('realm_joined', self._session_details)
+        # Notify listeners that we've joined the realm
+        self.realm_joined.dispatch(self._session_details)
 
     async def disconnect(self) -> None:
         """

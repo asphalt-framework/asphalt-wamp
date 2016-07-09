@@ -6,6 +6,7 @@ import txaio
 from typeguard import check_argument_types
 
 from asphalt.core import Component, Context
+from asphalt.core.util import merge_config
 from asphalt.wamp.client import WAMPClient
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,7 @@ class WAMPComponent(Component):
 
         self.clients = []
         for resource_name, config in clients.items():
-            config = dict(default_client_args, **config)
+            config = merge_config(default_client_args, config)
             config.setdefault('realm', resource_name)
             context_attr = config.pop('context_attr', resource_name)
             client = WAMPClient(**config)
@@ -55,6 +56,6 @@ class WAMPComponent(Component):
 
         for resource_name, context_attr, client in self.clients:
             await client.start(ctx)
-            await ctx.publish_resource(client, resource_name, context_attr)
+            ctx.publish_resource(client, resource_name, context_attr)
             logger.info('Configured WAMP client (%s / ctx.%s; realm=%s; url=%s)', resource_name,
                         context_attr, client.realm, client.url)

@@ -1,6 +1,6 @@
 from autobahn.wamp.types import SessionDetails, CloseDetails
 
-from asphalt.core import Event, EventSource
+from asphalt.core import Event
 
 
 class SessionJoinEvent(Event):
@@ -12,7 +12,7 @@ class SessionJoinEvent(Event):
 
     __slots__ = 'session_id'
 
-    def __init__(self, source: EventSource, topic: str, session_details: SessionDetails):
+    def __init__(self, source, topic: str, session_details: SessionDetails):
         super().__init__(source, topic)
         self.session_id = session_details.session
 
@@ -27,7 +27,7 @@ class SessionLeaveEvent(Event):
 
     __slots__ = 'reason', 'message'
 
-    def __init__(self, source: EventSource, topic: str, close_details: CloseDetails):
+    def __init__(self, source, topic: str, close_details: CloseDetails):
         super().__init__(source, topic)
         self.reason = close_details.reason
         self.message = close_details.message

@@ -22,7 +22,7 @@ def crossbar(virtualenv):
     # environment as asphalt-wamp itself. So, we install it in a temporary virtualenv instead.
     scripts_dirname = os.path.basename(sysconfig.get_path('scripts'))
     scripts_dir = virtualenv.join(scripts_dirname)
-    subprocess.check_call([str(scripts_dir.join('pip')), 'install', 'crossbar ~= 0.13.2'])
+    subprocess.check_call([str(scripts_dir.join('pip')), 'install', 'crossbar ~= 0.14.0'])
 
     # Launch Crossbar
     config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
