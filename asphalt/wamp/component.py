@@ -37,7 +37,6 @@ class WAMPComponent(Component):
         check_argument_types()
         if not clients:
             default_client_args.setdefault('context_attr', 'wamp')
-            default_client_args.setdefault('url', 'ws://127.0.0.1/')
             clients = {'default': default_client_args}
 
         self.clients = []
@@ -57,5 +56,5 @@ class WAMPComponent(Component):
         for resource_name, context_attr, client in self.clients:
             await client.start(ctx)
             ctx.publish_resource(client, resource_name, context_attr)
-            logger.info('Configured WAMP client (%s / ctx.%s; realm=%s; url=%s)', resource_name,
-                        context_attr, client.realm, client.url)
+            logger.info('Configured WAMP client (%s / ctx.%s; host=%s; port=%d; realm=%s)',
+                        resource_name, context_attr, client.host, client.port, client.realm)

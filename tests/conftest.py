@@ -3,8 +3,8 @@ import subprocess
 import sysconfig
 
 import pytest
-
 from asphalt.core.context import Context
+
 from asphalt.wamp.client import WAMPClient
 
 
@@ -22,7 +22,7 @@ def crossbar(virtualenv):
     # environment as asphalt-wamp itself. So, we install it in a temporary virtualenv instead.
     scripts_dirname = os.path.basename(sysconfig.get_path('scripts'))
     scripts_dir = virtualenv.join(scripts_dirname)
-    subprocess.check_call([str(scripts_dir.join('pip')), 'install', 'crossbar ~= 0.14.0'])
+    subprocess.check_call([str(scripts_dir.join('pip')), 'install', 'crossbar ~= 0.15.0'])
 
     # Launch Crossbar
     config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
@@ -35,7 +35,7 @@ def crossbar(virtualenv):
         if b"transport 'transport-001' started" in line:
             break
     else:
-        raise RuntimeError('Crossbar failed to start: ' + process.stderr.read().decode())
+        raise RuntimeError('crossbar failed to start: ' + process.stderr.read().decode())
 
     yield process
 
@@ -45,7 +45,7 @@ def crossbar(virtualenv):
 @pytest.yield_fixture
 def wampclient(request, event_loop, crossbar):
     kwargs = getattr(request, 'param', {})
-    client = WAMPClient('ws://localhost:8090/', **kwargs)
+    client = WAMPClient(port=8090, **kwargs)
     event_loop.run_until_complete(client.start(Context()))
     yield client
     event_loop.run_until_complete(client.disconnect())

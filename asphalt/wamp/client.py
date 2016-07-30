@@ -7,16 +7,15 @@ from ssl import SSLContext
 from typing import Callable, Iterable, Optional, Union, Awaitable
 
 import txaio
+from asphalt.core import Context, resolve_reference, Signal
+from asphalt.serialization.api import Serializer
+from asphalt.serialization.serializers.cbor import CBORSerializer
 from autobahn.asyncio.wamp import ApplicationSession
 from autobahn.asyncio.websocket import WampWebSocketClientFactory
 from autobahn.wamp import auth
 from autobahn.wamp.types import (
     ComponentConfig, SessionDetails, EventDetails, CallDetails, PublishOptions, CallOptions,
     CloseDetails, Challenge, SubscribeOptions, RegisterOptions)
-from asphalt.core import Context, resolve_reference, Signal
-from asphalt.serialization.api import Serializer
-from asphalt.serialization.serializers.cbor import CBORSerializer
-from autobahn.websocket.util import parse_url
 from typeguard import check_argument_types
 
 from asphalt.wamp.context import CallContext, EventContext
@@ -103,16 +102,18 @@ class WAMPClient:
     realm_joined = Signal(SessionJoinEvent)
     realm_left = Signal(SessionLeaveEvent)
 
-    def __init__(self, url: str, realm: str = 'default', *, autoconnect: bool = True,
-                 reconnect_delay: int = 5, max_reconnection_attempts: int = None,
-                 registry: Union[WAMPRegistry, str] = None,
+    def __init__(self, host: str = 'localhost', port: int = 8080, path: str = '/',
+                 realm: str = 'default', *, autoconnect: bool = True, reconnect_delay: int = 5,
+                 max_reconnection_attempts: int = None, registry: Union[WAMPRegistry, str] = None,
                  ssl: Union[bool, str, SSLContext] = False,
                  serializer: Union[Serializer, str] = None, auth_method: str = 'anonymous',
                  auth_id: str = None, auth_secret: str = None):
         """
         The following parameters are also available as instance attributes:
 
-        :param url: the websocket URL to connect to
+        :param host: host address of the WAMP router
+        :param port: port to connect to
+        :param path: HTTP path on the router
         :param realm: the WAMP realm to join the application session to (defaults to the resource
             name if not specified)
         :param autoconnect: automatically connect when the client is started
@@ -137,8 +138,9 @@ class WAMPClient:
 
         """
         assert check_argument_types()
-        super().__init__()
-        self.url = url
+        self.host = host
+        self.port = port
+        self.path = path
         self.autoconnect = autoconnect
         self.reconnect_delay = reconnect_delay
         self.max_reconnection_attempts = max_reconnection_attempts
@@ -311,9 +313,9 @@ class WAMPClient:
                 self.connect()
 
         async def do_connect() -> None:
-            logger.debug('Connecting to %s', self.url)
-            is_secure, host, port = parse_url(self.url)[:3]
-            ssl = (self.ssl or True) if is_secure else False
+            proto = 'wss' if self.ssl else 'ws'
+            url = '{proto}://{self.host}:{self.port}{self.path}'.format(proto=proto, self=self)
+            logger.debug('Connecting to %s:%d (ssl=%s)', self.host, self.port, bool(self.ssl))
             serializers = [wrap_serializer(self.serializer)]
             loop = txaio.config.loop = get_event_loop()
             transport = None
@@ -326,9 +328,9 @@ class WAMPClient:
                     session_factory = partial(AsphaltSession, self.realm, self.auth_method,
                                               self.auth_id, self.auth_secret, join_future)
                     transport_factory = WampWebSocketClientFactory(
-                        session_factory, url=self.url, serializers=serializers, loop=loop)
+                        session_factory, url=url, serializers=serializers, loop=loop)
                     transport, protocol = await loop.create_connection(
-                        transport_factory, host, port, ssl=ssl)
+                        transport_factory, self.host, self.port, ssl=self.ssl)
 
                     # Connection established; wait for the session to join the realm
                     logger.debug('Connected; attempting to join realm %s', self.realm)
