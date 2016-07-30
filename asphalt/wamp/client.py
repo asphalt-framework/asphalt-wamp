@@ -1,8 +1,10 @@
-from asyncio import wait, wait_for, Future, get_event_loop, FIRST_EXCEPTION
+import logging
+from asyncio import wait, wait_for, sleep, Future, get_event_loop, FIRST_EXCEPTION, Task
+from asyncio.futures import CancelledError
 from functools import partial
 from inspect import isawaitable
 from ssl import SSLContext
-from typing import Callable, Iterable, Optional, Union
+from typing import Callable, Iterable, Optional, Union, Awaitable
 
 import txaio
 from autobahn.asyncio.wamp import ApplicationSession
@@ -11,18 +13,20 @@ from autobahn.wamp import auth
 from autobahn.wamp.types import (
     ComponentConfig, SessionDetails, EventDetails, CallDetails, PublishOptions, CallOptions,
     CloseDetails, Challenge, SubscribeOptions, RegisterOptions)
-from autobahn.websocket.util import parse_url
-from typeguard import check_argument_types
-
 from asphalt.core import Context, resolve_reference, Signal
 from asphalt.serialization.api import Serializer
 from asphalt.serialization.serializers.cbor import CBORSerializer
+from autobahn.websocket.util import parse_url
+from typeguard import check_argument_types
+
 from asphalt.wamp.context import CallContext, EventContext
 from asphalt.wamp.events import SessionJoinEvent, SessionLeaveEvent
 from asphalt.wamp.registry import WAMPRegistry, Procedure, Subscriber
 from asphalt.wamp.serializers import wrap_serializer
 
 __all__ = ('AuthenticationError', 'WAMPClient')
+
+logger = logging.getLogger(__name__)
 
 
 class WAMPError(Exception):
@@ -37,20 +41,19 @@ class AuthenticationError(WAMPError):
 
 
 class AsphaltSession(ApplicationSession):
-    def __init__(self, realm: str, auth_method: Optional[str], auth_id: Optional[str],
+    def __init__(self, realm: str, auth_method: str, auth_id: Optional[str],
                  auth_secret: Optional[str], join_future: Future):
         super().__init__(ComponentConfig(realm))
+        self.__auth_method = auth_method
         self.__auth_id = auth_id
         self.__auth_secret = auth_secret
-        self.__auth_method = auth_method
         self.__join_future = join_future
 
     def onConnect(self):
-        auth_methods = [self.__auth_method] if self.__auth_method else None
-        self.join(self.config.realm, auth_methods, self.__auth_id)
+        self.join(self.config.realm, [self.__auth_method], self.__auth_id)
 
     def onJoin(self, details: SessionDetails):
-        self.__join_future.set_result(details)
+        self.__join_future.set_result((details, self))
         self.__join_future = None
 
     def onLeave(self, details):
@@ -87,26 +90,6 @@ class WAMPClient:
     """
     A WAMP client.
 
-    :param realm: the WAMP realm to join the application session to (defaults to the resource
-        name if not specified)
-    :param url: the websocket URL to connect to
-    :param registry: a WAMP registry or a string reference to one (defaults to creating a new
-        instance if omitted)
-    :param ssl: one of the following:
-
-        * ``False`` to disable SSL
-        * ``True`` to enable SSL using the default context
-        * an :class:`ssl.SSLContext` instance
-        * a ``module:varname`` reference to an :class:`~ssl.SSLContext` instance
-        * name of an :class:`ssl.SSLContext` resource
-    :param serializer: a serializer instance or the name of a
-        :class:`asphalt.serialization.api.Serializer` resource (defaults to creating a new
-        :class:`~asphalt.serialization.cbor.CBORSerializer` if omitted)
-    :param auth_method: authentication method to use (valid values are currently ``anonymous``,
-        ``wampcra`` and ``ticket``)
-    :param auth_id: authentication ID (username)
-    :param auth_secret: secret to use for authentication (ticket or password)
-
     :ivar Signal realm_joined: a signal (:class:`~asphalt.wamp.events.SessionJoinEvent`) dispatched
         when the client has joined the realm and has registered any procedures and subscribers on
         the router
@@ -120,14 +103,45 @@ class WAMPClient:
     realm_joined = Signal(SessionJoinEvent)
     realm_left = Signal(SessionLeaveEvent)
 
-    def __init__(self, url: str, realm: str = 'default', *,
+    def __init__(self, url: str, realm: str = 'default', *, autoconnect: bool = True,
+                 reconnect_delay: int = 5, max_reconnection_attempts: int = None,
                  registry: Union[WAMPRegistry, str] = None,
                  ssl: Union[bool, str, SSLContext] = False,
                  serializer: Union[Serializer, str] = None, auth_method: str = 'anonymous',
                  auth_id: str = None, auth_secret: str = None):
+        """
+        The following parameters are also available as instance attributes:
+
+        :param url: the websocket URL to connect to
+        :param realm: the WAMP realm to join the application session to (defaults to the resource
+            name if not specified)
+        :param autoconnect: automatically connect when the client is started
+        :param reconnect_delay: delay between connection attempts (in seconds)
+        :param max_reconnection_attempts: maximum number of connection attempts before giving up
+        :param registry: a WAMP registry or a string reference to one (defaults to creating a new
+            instance if omitted)
+        :param ssl: one of the following:
+
+            * ``False`` to disable SSL
+            * ``True`` to enable SSL using the default context
+            * an :class:`ssl.SSLContext` instance
+            * a ``module:varname`` reference to an :class:`~ssl.SSLContext` instance
+            * name of an :class:`ssl.SSLContext` resource
+        :param serializer: a serializer instance or the name of a
+            :class:`asphalt.serialization.api.Serializer` resource (defaults to creating a new
+            :class:`~asphalt.serialization.cbor.CBORSerializer` if omitted)
+        :param auth_method: authentication method to use (valid values are currently ``anonymous``,
+            ``wampcra`` and ``ticket``)
+        :param auth_id: authentication ID (username)
+        :param auth_secret: secret to use for authentication (ticket or password)
+
+        """
         assert check_argument_types()
         super().__init__()
         self.url = url
+        self.autoconnect = autoconnect
+        self.reconnect_delay = reconnect_delay
+        self.max_reconnection_attempts = max_reconnection_attempts
         self.realm = realm
         self.registry = resolve_reference(registry) or WAMPRegistry()
         self.ssl = resolve_reference(ssl)
@@ -139,6 +153,7 @@ class WAMPClient:
         self._context = None
         self._session = None  # type: AsphaltSession
         self._session_details = None  # type: SessionDetails
+        self._connect_task = None  # type: Task
 
     async def _register(self, procedure: Procedure):
         async def wrapper(*args, _call_details: CallDetails, **kwargs):
@@ -171,6 +186,9 @@ class WAMPClient:
         if isinstance(self.serializer, str):
             self.serializer = await ctx.request_resource(Serializer, self.serializer)
 
+        if self.autoconnect:
+            self.connect()
+
     async def map_exception(self, exc_class: type, error: str) -> None:
         """
         Map a Python exception to a WAMP error.
@@ -181,7 +199,7 @@ class WAMPClient:
         """
         self.registry.map_exception(exc_class, error)
         if self._session is None:
-            await self.connect()
+            await self.connect()  # this will automatically map the exception
         else:
             self._session.define(exc_class, error)
 
@@ -196,11 +214,11 @@ class WAMPClient:
 
         """
         assert check_argument_types()
-        if self._session is None:
-            await self.connect()
-
         procedure = self.registry.add_procedure(handler, name, **options)
-        await self._register(procedure)
+        if self._session is None:
+            await self.connect()  # this will automatically register the procedure
+        else:
+            await self._register(procedure)
 
     async def subscribe(self, handler: Callable, topic: str, **options) -> None:
         """
@@ -213,11 +231,11 @@ class WAMPClient:
 
         """
         assert check_argument_types()
+        subscriber = self.registry.add_subscriber(handler, topic, **options)
         if self._session is None:
             await self.connect()  # this will automatically register the subscriber
-
-        subscriber = self.registry.add_subscriber(handler, topic, **options)
-        await self._subscribe(subscriber)
+        else:
+            await self._subscribe(subscriber)
 
     async def publish(self, topic: str, *args, acknowledge: bool = False, exclude_me: bool = None,
                       exclude: Iterable[int] = None, eligible_sessions: Iterable[int] = None,
@@ -270,74 +288,111 @@ class WAMPClient:
         options = CallOptions(on_progress=on_progress, timeout=timeout)
         return await self._session.call(endpoint, *args, options=options, **kwargs)
 
-    async def connect(self) -> None:
+    def connect(self) -> Awaitable[None]:
         """
-        Connect to the server and join the designated realm if not connected already.
+        Connect to the WAMP router and join the designated realm.
 
-        When joined, registers procedures and event subscriptions on the router from the registry.
+        When the realm is successfully joined, exceptions, procedures and event subscriptions from
+        the registry are automatically registered with the router.
 
-        Does nothing if a connection has already been established.
+        The connection process is restarted if connection, joining the realm or registering the
+        exceptions/procedures/subscriptions fails. If ``max_connection_attempts`` is set, it will
+        limit the number of attempts. If this limit is reached, the awaitable gets the last
+        exception set to it. Otherwise, the process is repeated indefinitely until it succeeds.
+
+        If the realm has already been joined, the awaitable completes instantly.
 
         """
-        async def leave_callback(session: AsphaltSession, leave_details: CloseDetails):
-            self._session = self._session_details = None
+        def _leave_callback(session: AsphaltSession, leave_details: CloseDetails):
+            self._session = self._session_details = self._connect_task = None
             self.realm_left.dispatch(leave_details)
+            if leave_details.reason == CloseDetails.REASON_TRANSPORT_LOST:
+                logger.debug('Connection lost; reconnecting')
+                self.connect()
 
-        is_secure, host, port = parse_url(self.url)[:3]
-        ssl = (self.ssl or True) if is_secure else False
-        join_future = Future()
-        session_factory = partial(AsphaltSession, self.realm, self.auth_method,
-                                  self.auth_id, self.auth_secret, join_future)
-        serializers = [wrap_serializer(self.serializer)]
-        loop = txaio.config.loop = get_event_loop()
-        transport_factory = WampWebSocketClientFactory(
-            session_factory, url=self.url, serializers=serializers, loop=loop)
-        transport, protocol = await loop.create_connection(
-            transport_factory, host, port, ssl=ssl)
+        async def do_connect() -> None:
+            logger.debug('Connecting to %s', self.url)
+            is_secure, host, port = parse_url(self.url)[:3]
+            ssl = (self.ssl or True) if is_secure else False
+            serializers = [wrap_serializer(self.serializer)]
+            loop = txaio.config.loop = get_event_loop()
+            transport = None
+            attempts = 0
 
-        try:
-            # Connection established; wait for the session to join the realm
-            self._session_details = await wait_for(join_future, 10, loop=loop)
-            self._session = protocol._session
-        except Exception:
-            transport.close()
-            raise
+            while self._session is None:
+                attempts += 1
+                try:
+                    join_future = Future()
+                    session_factory = partial(AsphaltSession, self.realm, self.auth_method,
+                                              self.auth_id, self.auth_secret, join_future)
+                    transport_factory = WampWebSocketClientFactory(
+                        session_factory, url=self.url, serializers=serializers, loop=loop)
+                    transport, protocol = await loop.create_connection(
+                        transport_factory, host, port, ssl=ssl)
 
-        try:
-            # Register exception mappings with the session
-            for error, exc_type in self.registry.exceptions.items():
-                self._session.define(exc_type, error)
+                    # Connection established; wait for the session to join the realm
+                    logger.debug('Connected; attempting to join realm %s', self.realm)
+                    self._session_details, self._session = await wait_for(join_future, timeout=5,
+                                                                          loop=loop)
 
-            # Register procedures and subscribers with the session
-            tasks = [loop.create_task(self._subscribe(subscriber)) for
-                     subscriber in self.registry.subscriptions]
-            tasks += [loop.create_task(self._register(procedure)) for
-                      procedure in self.registry.procedures.values()]
-            if tasks:
-                done, not_done = await wait(tasks, loop=loop, timeout=10,
-                                            return_when=FIRST_EXCEPTION)
-                for task in done:
-                    if task.exception():
-                        raise task.exception()
-        except Exception:
-            await self._session.leave()
-            self._session = self._session_details = None
-            raise
+                    # Register exception mappings with the session
+                    logger.debug(
+                        'Realm joined; registering exceptions, subscriptions and procedures')
+                    for error, exc_type in self.registry.exceptions.items():
+                        self._session.define(exc_type, error)
 
-        self._session.on('leave', leave_callback)
+                    # Register procedures and subscribers with the session
+                    tasks = [loop.create_task(self._subscribe(subscriber)) for
+                             subscriber in self.registry.subscriptions]
+                    tasks += [loop.create_task(self._register(procedure)) for
+                              procedure in self.registry.procedures.values()]
+                    if tasks:
+                        done, not_done = await wait(tasks, loop=loop, timeout=10,
+                                                    return_when=FIRST_EXCEPTION)
+                        for task in done:
+                            if task.exception():
+                                raise task.exception()
+                except CancelledError:
+                    raise
+                except Exception as e:
+                    if transport:
+                        transport.close()
 
-        # Notify listeners that we've joined the realm
-        self.realm_joined.dispatch(self._session_details)
+                    self._session = self._session_details = transport = None
+                    if (self.max_reconnection_attempts is not None
+                            and attempts > self.max_reconnection_attempts):
+                        raise
+
+                    logger.info('Connection failed (attempt %d): %s(%s); reconnecting in %d '
+                                'seconds', attempts, e.__class__.__name__, e, self.reconnect_delay)
+                    await sleep(self.reconnect_delay)
+
+            self._session.on('leave', _leave_callback)
+
+            # Notify listeners that we've joined the realm
+            self.realm_joined.dispatch(self._session_details)
+
+            logger.debug('Registration complete')
+
+        # Start a new connection attempt only if not connected and there is no attempt in progress
+        if not self._connect_task:
+            self._connect_task = get_event_loop().create_task(do_connect())
+
+        return self._connect_task
 
     async def disconnect(self) -> None:
         """
         Leave the WAMP realm and disconnect from the server.
 
+        If a connection attempt is in progress, it is cancelled.
         Does nothing if not connected to a server.
 
         """
         if self._session:
             await self._session.leave()
+        elif self._connect_task and not self._connect_task.done():
+            self._connect_task.cancel()
+            self._connect_task = None
 
     @property
     def session_id(self) -> Optional[int]:
@@ -345,5 +400,6 @@ class WAMPClient:
         Return the current WAMP session ID.
 
         :return: the session ID or ``None`` if not in a session.
+
         """
         return self._session_details.session if self._session_details else None

@@ -117,7 +117,8 @@ async def test_auth_ticket(wampclient: WAMPClient):
 
 
 @pytest.mark.parametrize('wampclient', [
-    {'auth_method': 'ticket', 'auth_id': 'device1', 'auth_secret': 'abc124'}
+    {'auth_method': 'ticket', 'auth_id': 'device1', 'auth_secret': 'abc124',
+     'max_reconnection_attempts': 0}
 ], indirect=True)
 @pytest.mark.asyncio
 async def test_auth_failure(wampclient: WAMPClient):
@@ -170,11 +171,12 @@ async def test_map_exception(wampclient: WAMPClient, connect_first):
         await wampclient.call('test.error')
 
 
+@pytest.mark.parametrize('wampclient', [{'max_reconnection_attempts': 0}], indirect=True)
 @pytest.mark.asyncio
-async def test_join_failure(wampclient: WAMPClient):
+async def test_connect_procedure_registration_failure(wampclient: WAMPClient):
     """
-    Test that a failure in registering the registry's procedures causes the connection to be
-    terminated.
+    Test that a failure in registering the registry's procedures causes the connection attempt to
+    fail.
 
     """
     with pytest.raises(AssertionError):
