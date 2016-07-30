@@ -30,11 +30,6 @@ class WAMPRegistry:
 
     * match: ``exact``
 
-    :param prefix: a prefix that is added to the name of every registered procedure
-    :param procedure_defaults: default values to use for omitted arguments to :meth:`add_procedure`
-    :param subscription_defaults: default values to use for omitted arguments to
-        :meth:`add_subscriber`
-
     :ivar procedures: registered procedure handlers
     :vartype procedures: Dict[str, ProcedureRegistration]
     :ivar subscriptions: registered event subscribers
@@ -48,6 +43,14 @@ class WAMPRegistry:
 
     def __init__(self, prefix: str = '', *, procedure_defaults: Dict[str, Any] = None,
                  subscription_defaults: Dict[str, Any] = None):
+        """
+        :param prefix: a prefix that is added to the name of every registered procedure
+        :param procedure_defaults: default values to use for omitted arguments to
+            :meth:`add_procedure`
+        :param subscription_defaults: default values to use for omitted arguments to
+            :meth:`add_subscriber`
+
+        """
         assert check_argument_types()
         if prefix and not prefix.endswith('.'):
             prefix += '.'

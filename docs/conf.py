@@ -27,6 +27,7 @@ exclude_patterns = ['_build']
 pygments_style = 'sphinx'
 highlight_language = 'python3'
 todo_include_todos = False
+autoclass_content = ['special-members']
 
 html_theme = 'classic'
 html_static_path = ['_static']
