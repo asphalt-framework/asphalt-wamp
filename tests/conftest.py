@@ -1,3 +1,4 @@
+import asyncio
 import os
 import subprocess
 import sysconfig
@@ -6,6 +7,14 @@ import pytest
 from asphalt.core.context import Context
 
 from asphalt.wamp.client import WAMPClient
+
+
+@pytest.fixture
+def event_loop():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    yield loop
+    loop.close()
 
 
 @pytest.yield_fixture(scope='session')
@@ -22,7 +31,7 @@ def crossbar(virtualenv):
     # environment as asphalt-wamp itself. So, we install it in a temporary virtualenv instead.
     scripts_dirname = os.path.basename(sysconfig.get_path('scripts'))
     scripts_dir = virtualenv.join(scripts_dirname)
-    subprocess.check_call([str(scripts_dir.join('pip')), 'install', 'crossbar ~= 0.15.0'])
+    subprocess.check_call([str(scripts_dir.join('pip')), 'install', 'crossbar ~= 16.10.1'])
 
     # Launch Crossbar
     config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
