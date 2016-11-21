@@ -4,7 +4,7 @@ import pytest
 from asyncio_extras.threads import threadpool
 from autobahn.wamp.types import Challenge
 
-from asphalt.wamp.client import WAMPClient, AsphaltSession, AuthenticationError
+from asphalt.wamp.client import WAMPClient, AsphaltSession, AuthenticationError, WAMPError
 from asphalt.wamp.events import SessionJoinEvent, SessionLeaveEvent
 
 
@@ -12,8 +12,8 @@ class TestAsphaltSession:
     def test_challenge_mismatch(self):
         session = AsphaltSession('default', 'ticket', 'foo', 'bar', asyncio.Future())
         challenge = Challenge('wampcra')
-        exc = pytest.raises(Exception, session.onChallenge, challenge)
-        assert str(exc.value) == ('Expected authentication method "ticket" but received a '
+        exc = pytest.raises(WAMPError, session.onChallenge, challenge)
+        assert str(exc.value) == ('expected authentication method "ticket" but received a '
                                   '"wampcra" challenge instead')
 
     def test_ticket_challenge(self):

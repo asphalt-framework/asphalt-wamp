@@ -70,7 +70,7 @@ class AsphaltSession(ApplicationSession):
 
     def onChallenge(self, challenge: Challenge):
         if challenge.method != self.__auth_method:
-            raise Exception('Expected authentication method "{}" but received a "{}" challenge '
+            raise WAMPError('expected authentication method "{}" but received a "{}" challenge '
                             'instead'.format(self.__auth_method, challenge.method))
 
         if challenge.method == 'wampcra':
