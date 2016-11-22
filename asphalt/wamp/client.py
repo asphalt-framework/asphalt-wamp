@@ -1,5 +1,5 @@
 import logging
-from asyncio import wait, wait_for, sleep, Future, get_event_loop, FIRST_EXCEPTION, Task
+from asyncio import wait, wait_for, sleep, Future, get_event_loop, FIRST_EXCEPTION, Task  # noqa
 from asyncio.futures import CancelledError
 from functools import partial
 from inspect import isawaitable
@@ -361,8 +361,8 @@ class WAMPClient:
                         transport.close()
 
                     self._session = self._session_details = transport = None
-                    if (self.max_reconnection_attempts is not None
-                            and attempts > self.max_reconnection_attempts):
+                    if (self.max_reconnection_attempts is not None and
+                            attempts > self.max_reconnection_attempts):
                         raise
 
                     logger.info('Connection failed (attempt %d): %s(%s); reconnecting in %d '

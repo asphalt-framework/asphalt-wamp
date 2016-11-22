@@ -18,7 +18,7 @@ class WAMPComponent(Component):
     context variables.
     """
 
-    def __init__(self, clients: Dict[str, Dict[str, Any]]=None, **default_client_args):
+    def __init__(self, clients: Dict[str, Dict[str, Any]] = None, **default_client_args):
         """
         If the ``clients`` argument is omitted or empty, a default client with the context
         attribute ``wamp`` will be created that connects to the realm named ``default``.
@@ -34,7 +34,7 @@ class WAMPComponent(Component):
             for the default client if ``clients`` is not specified
 
         """
-        check_argument_types()
+        assert check_argument_types()
         if not clients:
             default_client_args.setdefault('context_attr', 'wamp')
             clients = {'default': default_client_args}
