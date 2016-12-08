@@ -52,18 +52,19 @@ class AsphaltSession(ApplicationSession):
         self.join(self.config.realm, [self.__auth_method], self.__auth_id)
 
     def onJoin(self, details: SessionDetails):
-        self.__join_future.set_result((details, self))
-        self.__join_future = None
+        if self.__join_future and not self.__join_future.cancelled():
+            self.__join_future.set_result((details, self))
+            self.__join_future = None
 
     def onLeave(self, details):
         super().onLeave(details)
-        if self.__join_future:
+        if self.__join_future and not self.__join_future.cancelled():
             exc = AuthenticationError(details.message)
             self.__join_future.set_exception(exc)
             self.__join_future = None
 
     def onDisconnect(self):
-        if self.__join_future:
+        if self.__join_future and not self.__join_future.cancelled():
             exc = WAMPError('connection closed unexpectedly')
             self.__join_future.set_exception(exc)
             self.__join_future = None
