@@ -29,4 +29,5 @@ deploy:
   distributions: sdist bdist_wheel
   on:
     tags: true
+    python: "3.5"
     repo: asphalt-framework/asphalt-wamp
