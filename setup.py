@@ -18,10 +18,11 @@ setup(
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: Apache Software License',
+        'Topic :: Communications',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
-        'Topic :: Communications'
+        'Programming Language :: Python :: 3.6'
     ],
     license='Apache License 2.0',
     zip_safe=False,
