@@ -37,6 +37,13 @@ setup(
         'asphalt-serialization[cbor] ~= 3.0',
         'autobahn ~= 0.15'
     ],
+    extras_require={
+        'testing': [
+            'pytest',
+            'pytest-cov',
+            'pytest-asyncio >= 0.5.0',
+        ]
+    },
     entry_points={
         'asphalt.components': [
             'wamp = asphalt.wamp.component:WAMPComponent'
