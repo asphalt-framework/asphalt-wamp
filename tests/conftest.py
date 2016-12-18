@@ -17,7 +17,7 @@ def event_loop():
     loop.close()
 
 
-@pytest.yield_fixture(scope='session')
+@pytest.fixture(scope='session')
 def virtualenv(tmpdir_factory):
     venv_dir = tmpdir_factory.mktemp('virtualenv')
     subprocess.check_call(['virtualenv', str(venv_dir)])
@@ -25,7 +25,7 @@ def virtualenv(tmpdir_factory):
     venv_dir.remove()
 
 
-@pytest.yield_fixture(scope='session')
+@pytest.fixture(scope='session')
 def crossbar(virtualenv):
     # Crossbar has pinned dependencies and thus cannot be safely installed in the same testing
     # environment as asphalt-wamp itself. So, we install it in a temporary virtualenv instead.
@@ -51,7 +51,7 @@ def crossbar(virtualenv):
     process.terminate()
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def wampclient(request, event_loop, crossbar):
     kwargs = getattr(request, 'param', {})
     client = WAMPClient(port=8090, **kwargs)
