@@ -104,7 +104,7 @@ class WAMPClient:
     realm_left = Signal(SessionLeaveEvent)
 
     def __init__(self, host: str = 'localhost', port: int = 8080, path: str = '/',
-                 realm: str = 'default', *, autoconnect: bool = True, reconnect_delay: int = 5,
+                 realm: str = 'default', *, reconnect_delay: int = 5,
                  max_reconnection_attempts: int = None, registry: Union[WAMPRegistry, str] = None,
                  ssl: Union[bool, str, SSLContext] = False,
                  serializer: Union[Serializer, str] = None, auth_method: str = 'anonymous',
@@ -117,7 +117,6 @@ class WAMPClient:
         :param path: HTTP path on the router
         :param realm: the WAMP realm to join the application session to (defaults to the resource
             name if not specified)
-        :param autoconnect: automatically connect when the client is started
         :param reconnect_delay: delay between connection attempts (in seconds)
         :param max_reconnection_attempts: maximum number of connection attempts before giving up
         :param registry: a WAMP registry or a string reference to one (defaults to creating a new
@@ -142,7 +141,6 @@ class WAMPClient:
         self.host = host
         self.port = port
         self.path = path
-        self.autoconnect = autoconnect
         self.reconnect_delay = reconnect_delay
         self.max_reconnection_attempts = max_reconnection_attempts
         self.realm = realm
@@ -188,9 +186,6 @@ class WAMPClient:
             self.registry = await ctx.request_resource(WAMPRegistry, self.registry)
         if isinstance(self.serializer, str):
             self.serializer = await ctx.request_resource(Serializer, self.serializer)
-
-        if self.autoconnect:
-            self.connect()
 
     async def map_exception(self, exc_class: type, error: str) -> None:
         """
