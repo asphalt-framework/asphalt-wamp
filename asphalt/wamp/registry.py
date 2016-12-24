@@ -21,6 +21,16 @@ class WAMPRegistry:
     """
     Hosts a collection of WAMP procedure and subscriber registrations and exception mappings.
 
+    The purpose of this class is to ease the task of collecting all of the procedure handlers,
+    event listeners and exception mappings of the application into a single place that the client
+    can then use to register those on the router when a session has been opened.
+    The alternative would be to call :meth:`~asphalt.wamp.client.WAMPClient.register_procedure`,
+    :meth:`~asphalt.wamp.client.WAMPClient.subscribe` and
+    :meth:`~asphalt.wamp.client.WAMPClient.map_exception` after
+    :meth:`~asphalt.wamp.client.WAMPClient.connect`. This would not be very modular, however, since
+    the code the connects the client would have to know about every single handler callbacks in
+    advance.
+
     Procedures have the following default registration options:
 
     * match: ``exact``
@@ -76,7 +86,7 @@ class WAMPRegistry:
         The other positional and keyword arguments will be the arguments the caller passed to it.
 
         :param handler: callable that handles the procedure calls
-        :param name: name of the endpoint to register (relative to router's prefix)
+        :param name: name of the endpoint to register (relative to registry's prefix)
         :param match: one of ``exact``, ``prefix``, ``wildcard``
         :param invoke: one of ``single``, ``roundrobin``, ``random``, ``first``, ``last``
         :return: the procedure registration object
@@ -109,7 +119,7 @@ class WAMPRegistry:
 
         If ``name`` has not been specified, the function name of the handler is used.
 
-        :param name: name of the endpoint to register (relative to router's prefix)
+        :param name: name of the endpoint to register (relative to registry's prefix)
         :param match: one of ``exact``, ``prefix``, ``wildcard``
         :param invoke: one of ``single``, ``roundrobin``, ``random``, ``first``, ``last``
 
@@ -217,7 +227,7 @@ class WAMPRegistry:
         Prefixes only apply to procedure registrations; event subscriptions and exception mappings
         are unaffected.
 
-        :param registry: a WAMP router
+        :param registry: a WAMP registry
         :param prefix: prefix to add to names of all procedure endpoints
 
         """
