@@ -9,7 +9,7 @@ from typing import Callable, Iterable, Optional, Union, Awaitable
 import txaio
 from asphalt.core import Context, resolve_reference, Signal
 from asphalt.serialization.api import Serializer
-from asphalt.serialization.serializers.cbor import CBORSerializer
+from asphalt.serialization.serializers.json import JSONSerializer
 from autobahn.asyncio.wamp import ApplicationSession
 from autobahn.asyncio.websocket import WampWebSocketClientFactory
 from autobahn.wamp import auth
@@ -131,7 +131,7 @@ class WAMPClient:
             * name of an :class:`ssl.SSLContext` resource
         :param serializer: a serializer instance or the name of a
             :class:`asphalt.serialization.api.Serializer` resource (defaults to creating a new
-            :class:`~asphalt.serialization.cbor.CBORSerializer` if omitted)
+            :class:`~asphalt.serialization.json.JSONSerializer` if omitted)
         :param auth_method: authentication method to use (valid values are currently ``anonymous``,
             ``wampcra`` and ``ticket``)
         :param auth_id: authentication ID (username)
@@ -148,7 +148,7 @@ class WAMPClient:
         self.realm = realm
         self.registry = resolve_reference(registry) or WAMPRegistry()
         self.ssl = resolve_reference(ssl)
-        self.serializer = resolve_reference(serializer) or CBORSerializer({'value_sharing': False})
+        self.serializer = resolve_reference(serializer) or JSONSerializer()
         self.auth_method = auth_method
         self.auth_id = auth_id
         self.auth_secret = auth_secret

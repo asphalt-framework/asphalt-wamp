@@ -34,8 +34,8 @@ setup(
     ],
     install_requires=[
         'asphalt ~= 2.0',
-        'asphalt-serialization[cbor] ~= 3.0',
-        'autobahn ~= 0.15'
+        'asphalt-serialization ~= 3.0',
+        'autobahn ~= 0.17'
     ],
     extras_require={
         'testing': [
