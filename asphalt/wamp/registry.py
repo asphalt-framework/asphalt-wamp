@@ -144,7 +144,7 @@ class WAMPRegistry:
         The other positional and keyword arguments will be the arguments the publisher passed to
         the ``publish()`` method.
 
-        The topic may contain wildcards (``a.b.*``).
+        The topic may contain wildcards (``a..b``).
 
         :param handler: callable that receives matching events
         :param topic: the topic to listen to
