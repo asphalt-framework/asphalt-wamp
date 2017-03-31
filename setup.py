@@ -33,9 +33,9 @@ setup(
         'setuptools_scm >= 1.7.0'
     ],
     install_requires=[
-        'asphalt ~= 2.0',
-        'asphalt-serialization ~= 3.0',
-        'autobahn ~= 0.17'
+        'asphalt ~= 3.0',
+        'asphalt-serialization ~= 4.0',
+        'autobahn >= 0.18.1'
     ],
     extras_require={
         'testing': [
