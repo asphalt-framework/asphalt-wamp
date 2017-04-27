@@ -20,7 +20,7 @@ class WAMPComponent(Component):
     def __init__(self, clients: Dict[str, Dict[str, Any]] = None, **default_client_args):
         """
         If the ``clients`` argument is omitted or empty, a default client with the context
-        attribute ``wamp`` will be created that connects to the realm named ``default``.
+        attribute ``wamp`` will be created.
 
         If ``clients`` is defined, any keyword arguments to the component become default options
         for the clients.
@@ -28,7 +28,7 @@ class WAMPComponent(Component):
         If you wish to change the context attribute of a WAMP client, use the ``context_attr``
         argument.
 
-        :param clients: a dictionary of resource name -> :class:`.WAMPClient` constructor arguments
+        :param clients: a dictionary of resource name ⭢ :class:`.WAMPClient` constructor arguments
         :param default_client_args: :class:`.WAMPClient` base options for all clients or arguments
             for the default client if ``clients`` is not specified
 
@@ -41,7 +41,6 @@ class WAMPComponent(Component):
         self.clients = []
         for resource_name, config in clients.items():
             config = merge_config(default_client_args, config)
-            config.setdefault('realm', resource_name)
             context_attr = config.pop('context_attr', resource_name)
             client = WAMPClient(**config)
             self.clients.append((resource_name, context_attr, client))
