@@ -1,17 +1,15 @@
-Asphalt-WAMP documentation
-==========================
+.. include:: ../README.rst
+   :start-line: 7
+   :end-before: Project links
 
+Table of contents
+-----------------
 
 .. toctree::
    :maxdepth: 2
 
    configuration
    usage
-   testing
    versionhistory
-
-
-Indices and tables
-==================
 
 * :ref:`API reference <modindex>`
