@@ -371,7 +371,10 @@ class WAMPClient:
 
                     # Register exception mappings with the session
                     logger.debug(
-                        'Realm joined; registering exceptions, subscriptions and procedures')
+                        'Realm %r joined; registering %d exception(s), %d subscription(s) and %d '
+                        'procedure(s)', self._session_details.realm,
+                        len(self._registry.exceptions), len(self._registry.subscriptions),
+                        len(self._registry.procedures))
                     for error, exc_type in self._registry.exceptions.items():
                         self._session.define(exc_type, error)
 
