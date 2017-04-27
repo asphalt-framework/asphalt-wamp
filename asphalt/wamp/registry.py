@@ -78,17 +78,18 @@ class WAMPRegistry:
         self.subscriptions = []
         self.exceptions = OrderedDict()
 
-    def add_procedure(self, handler: Callable, name: str, *, match: str = None,
+    def add_procedure(self, handler: Callable, name: str = None, *, match: str = None,
                       invoke: str = None, metadata: dict = None) -> Procedure:
         """
         Add a procedure handler.
 
-        The callable must return an awaitable. It will receive a
-        :class:`~asphalt.wamp.context.CallContext` instance as its first argument.
-        The other positional and keyword arguments will be the arguments the caller passed to it.
+        The callable will receive a :class:`~asphalt.wamp.context.CallContext` instance as its
+        first argument. The other positional and keyword arguments will be the arguments the caller
+        passed to it.
 
         :param handler: callable that handles the procedure calls
-        :param name: name of the endpoint to register (relative to registry's prefix)
+        :param name: name of the endpoint to register (relative to registry's prefix); if ``None``,
+            use the callable's internal name
         :param match: one of ``exact``, ``prefix``, ``wildcard``
         :param invoke: one of ``single``, ``roundrobin``, ``random``, ``first``, ``last``
         :param metadata: a dictionary containing arbitrary metadata about the procedure
@@ -106,7 +107,7 @@ class WAMPRegistry:
         _validate_handler(handler, 'procedure handler')
         options = {'match': match or self.procedure_defaults['match'],
                    'invoke': invoke or self.procedure_defaults['invoke']}
-        name = self.prefix + name
+        name = self.prefix + (name or handler.__name__)
         registration = Procedure(name, handler, options, metadata or {})
         if self.procedures.setdefault(name, registration) is not registration:
             raise ValueError('duplicate registration of procedure "{}"'.format(name))
@@ -129,8 +130,7 @@ class WAMPRegistry:
 
         """
         def wrapper(handler: Callable):
-            self.add_procedure(handler, name or handler.__name__, match=match, invoke=invoke,
-                               metadata=metadata)
+            self.add_procedure(handler, name, match=match, invoke=invoke, metadata=metadata)
             return handler
 
         if inspect.isfunction(name):

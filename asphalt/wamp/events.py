@@ -2,6 +2,8 @@ from autobahn.wamp.types import SessionDetails, CloseDetails
 
 from asphalt.core import Event
 
+__all__ = ('SessionJoinEvent', 'SessionLeaveEvent')
+
 
 class SessionJoinEvent(Event):
     """

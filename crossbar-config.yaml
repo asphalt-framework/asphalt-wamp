@@ -3,7 +3,7 @@ version: 2
 workers:
 - type: router
   realms:
-  - name: default
+  - name: realm1
     roles:
     - name: authorized_users
       permissions:
@@ -19,8 +19,7 @@ workers:
   - type: websocket
     endpoint:
       type: tcp
-      interface: localhost
-      port: 8090
+      port: 8080
     auth:
       anonymous:
         type: static

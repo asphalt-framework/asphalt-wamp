@@ -1,0 +1,19 @@
+# Docker-like setup that serves as a local drop-in for the corresponding Travis services
+version: "2"
+services:
+  test:
+    build: .
+    user: 1000:1000
+    links:
+      - crossbar
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      CROSSBAR_HOST: crossbar
+
+  crossbar:
+    image: crossbario/crossbar:community-pypy3-17.3.1
+    volumes:
+      - ./crossbar-config.yaml:/node/.crossbar/config.yaml:ro
+    command: --config /node/.crossbar/config.yaml --loglevel trace

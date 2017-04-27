@@ -1,44 +1,47 @@
 import ssl
 
-from asphalt.core.context import Context
 from asphalt.serialization.api import Serializer
 from asphalt.serialization.serializers.json import JSONSerializer
 import pytest
 
 from asphalt.wamp.client import WAMPClient
 from asphalt.wamp.component import WAMPComponent
+from asphalt.wamp.registry import WAMPRegistry
 
 
 @pytest.mark.asyncio
-async def test_single_client(event_loop):
-    ctx = Context()
-    component = WAMPComponent(ssl='default', serializer='default')
-    ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+async def test_single_client(context):
+    tls_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.add_resource(tls_context)
+
     serializer = JSONSerializer()
-    ctx.publish_resource(serializer, types=[Serializer])
-    ctx.publish_resource(ssl_context)
-    await component.start(ctx)
+    context.add_resource(serializer, types=[Serializer])
 
-    assert isinstance(ctx.wamp, WAMPClient)
-    assert ctx.wamp.ssl is ssl_context
-    assert ctx.wamp.serializer is serializer
+    registry = WAMPRegistry()
+    context.add_resource(registry)
+
+    component = WAMPComponent(tls_context='default', serializer='default', registry='default')
+    await component.start(context)
+
+    assert isinstance(context.wamp, WAMPClient)
+    assert context.wamp.tls_context is tls_context
+    assert context.wamp.serializer is serializer
 
 
 @pytest.mark.asyncio
-async def test_multiple_clients(event_loop):
+async def test_multiple_clients(context):
     component = WAMPComponent(clients={
         'wamp1': {'host': '192.168.10.1', 'port': 8085},
         'wamp2': {'path': '/ws'}
     }, auth_id='username')
-    ctx = Context()
-    await component.start(ctx)
+    await component.start(context)
 
-    assert isinstance(ctx.wamp1, WAMPClient)
-    assert isinstance(ctx.wamp2, WAMPClient)
-    assert ctx.wamp1.host == '192.168.10.1'
-    assert ctx.wamp1.port == 8085
-    assert ctx.wamp1.path == '/'
-    assert ctx.wamp2.host == 'localhost'
-    assert ctx.wamp2.port == 8080
-    assert ctx.wamp2.path == '/ws'
-    assert ctx.wamp1.auth_id == ctx.wamp2.auth_id == 'username'
+    assert isinstance(context.wamp1, WAMPClient)
+    assert isinstance(context.wamp2, WAMPClient)
+    assert context.wamp1.host == '192.168.10.1'
+    assert context.wamp1.port == 8085
+    assert context.wamp1.path == '/'
+    assert context.wamp2.host == 'localhost'
+    assert context.wamp2.port == 8080
+    assert context.wamp2.path == '/ws'
+    assert context.wamp1.auth_id == context.wamp2.auth_id == 'username'

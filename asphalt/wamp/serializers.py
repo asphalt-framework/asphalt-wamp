@@ -1,8 +1,9 @@
-from autobahn.wamp import serializer as autobahn
 from asphalt.serialization.api import Serializer
+from autobahn.wamp import serializer as autobahn
+from autobahn.wamp.interfaces import IObjectSerializer
 
 
-class ObjectSerializerWrapper(autobahn.IObjectSerializer):
+class ObjectSerializerWrapper(IObjectSerializer):
     def __init__(self, serializer: Serializer, binary: bool):
         self._serializer = serializer
         self._binary = binary

@@ -2,6 +2,8 @@ from autobahn.wamp.types import CallDetails, SessionDetails, EventDetails
 
 from asphalt.core import Context
 
+__all__ = ('CallContext', 'EventContext')
+
 
 class CallContext(Context):
     """
@@ -18,8 +20,8 @@ class CallContext(Context):
     :ivar Optional[str] caller_auth_role: WAMP authentication role of the caller (if disclosed)
     :ivar Optional[str] procedure: the actual name of the procedure (when using a pattern based
         registration)
-    :ivar Optional[str] enc_algo: payload encryption algorithm that was in use (currently, either
-        `None` or `cryptobox`)
+    :ivar Optional[str] enc_algo: payload encryption algorithm that was in use, if any
+        (e.g. `cryptobox`, or a custom algorithm)
     """
 
     def __init__(self, parent: Context, session_details: SessionDetails,
@@ -48,8 +50,8 @@ class EventContext(Context):
     :ivar Optional[str] publisher_auth_role: WAMP authentication role of the publisher
         (if disclosed)
     :ivar str topic: the exact topic the event was received on
-    :ivar Optional[str] enc_algo: payload encryption algorithm that was in use (currently, either
-        ``None`` or ``cryptobox``)
+    :ivar Optional[str] enc_algo: payload encryption algorithm that was in use, if any
+        (e.g. `cryptobox`, or a custom algorithm)
     """
 
     def __init__(self, parent: Context, session_details: SessionDetails,

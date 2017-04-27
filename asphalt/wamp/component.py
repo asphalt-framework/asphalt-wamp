@@ -3,20 +3,19 @@ from asyncio import get_event_loop
 from typing import Any, Dict
 
 import txaio
+from asphalt.core import Component, Context, merge_config, context_teardown
+from async_generator import yield_
 from typeguard import check_argument_types
 
-from asphalt.core import Component, Context
-from asphalt.core.util import merge_config
 from asphalt.wamp.client import WAMPClient
+
+__all__ = ('WAMPComponent',)
 
 logger = logging.getLogger(__name__)
 
 
 class WAMPComponent(Component):
-    """
-    Publishes one or more :class:`~asphalt.wamp.client.WAMPClient` objects as resources and
-    context variables.
-    """
+    """Creates one or more :class:`~asphalt.wamp.client.WAMPClient` resources."""
 
     def __init__(self, clients: Dict[str, Dict[str, Any]] = None, **default_client_args):
         """
@@ -47,6 +46,7 @@ class WAMPComponent(Component):
             client = WAMPClient(**config)
             self.clients.append((resource_name, context_attr, client))
 
+    @context_teardown
     async def start(self, ctx: Context):
         # Autobahn uses txaio to bridge the API gap between asyncio and Twisted so we need to set
         # it up for asyncio here
@@ -55,6 +55,12 @@ class WAMPComponent(Component):
 
         for resource_name, context_attr, client in self.clients:
             await client.start(ctx)
-            ctx.publish_resource(client, resource_name, context_attr)
+            ctx.add_resource(client, resource_name, context_attr)
             logger.info('Configured WAMP client (%s / ctx.%s; host=%s; port=%d; realm=%s)',
                         resource_name, context_attr, client.host, client.port, client.realm)
+
+        await yield_()
+
+        for resource_name, context_attr, client in self.clients:
+            await client.close()
+            logger.info('Shut down WAMP client (%s)', resource_name)

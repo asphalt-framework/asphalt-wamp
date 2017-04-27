@@ -20,7 +20,7 @@ def test_procedure(registry: WAMPRegistry, use_decorator):
     else:
         registry.add_procedure(dummyhandler, 'procedurename', **options)
 
-    expected = Procedure('procedurename', dummyhandler, options)
+    expected = Procedure('procedurename', dummyhandler, options, {})
     assert registry.procedures == {'procedurename': expected}
 
 
@@ -34,7 +34,7 @@ def test_procedure_bad_argument_count(registry: WAMPRegistry):
 
 def test_procedure_simple_decorator(registry: WAMPRegistry):
     registry.procedure(dummyhandler)
-    expected = Procedure('dummyhandler', dummyhandler, registry.procedure_defaults)
+    expected = Procedure('dummyhandler', dummyhandler, registry.procedure_defaults, {})
     assert registry.procedures == {'dummyhandler': expected}
 
 
@@ -90,7 +90,8 @@ def test_add_from(prefix):
     parent_registry.add_from(child_registry, prefix)
     procedure_name = 'parent.{}child.procedure'.format((prefix + '.') if prefix else '')
     assert parent_registry.procedures == {
-        procedure_name: Procedure(procedure_name, dummyhandler, parent_registry.procedure_defaults)
+        procedure_name: Procedure(procedure_name, dummyhandler, parent_registry.procedure_defaults,
+                                  {})
     }
     assert parent_registry.subscriptions == [Subscriber('topic', dummyhandler, {'match': 'exact'})]
     assert parent_registry.exceptions == {'x.y.z': RuntimeError}
