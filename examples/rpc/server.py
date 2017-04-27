@@ -11,9 +11,9 @@ def uppercase(ctx, message: str):
 
 class RPCServerComponent(ContainerComponent):
     async def start(self, ctx: Context):
-        self.add_component('wamp', url='ws://localhost:8080')
+        self.add_component('wamp')
         await super().start(ctx)
-
         await ctx.wamp.register(uppercase, 'uppercase')
+
 
 run_application(RPCServerComponent(), logging=logging.INFO)

@@ -9,11 +9,11 @@ from pathlib import Path
 import logging
 import sys
 
-from asyncio_extras.file import open_async
-
 from asphalt.core import ContainerComponent, Context, run_application
+from asphalt.serialization.serializers.cbor import CBORSerializer
 from asphalt.wamp.context import CallContext
-from asphalt.wamp.utils import launch_crossbar
+from async_generator import aclosing
+from asyncio_extras.file import open_async
 
 logger = logging.getLogger(__name__)
 
@@ -25,19 +25,22 @@ async def send_file(ctx: CallContext, path: str):
 
     async with open_async(final_path, 'rb') as f:
         logger.info('Sending %s', path)
-        async for chunk in f.read_chunks(65536):
-            ctx.progress(chunk)
+        async with aclosing(f.async_readchunks(65536)) as stream:
+            async for chunk in stream:
+                ctx.progress(chunk)
 
     logger.info('Finished sending %s', path)
 
 
 class FileServerComponent(ContainerComponent):
     async def start(self, ctx: Context):
-        self.add_component('wamp', url='ws://localhost:8080')
+        # Need either msgpack or CBOR to serialize binary messages (such as raw file chunks)
+        self.add_component('wamp', serializer=CBORSerializer())
         await super().start(ctx)
 
         ctx.base_path = Path(sys.argv[1])
         await ctx.wamp.register(send_file, 'send_file')
+
 
 if len(sys.argv) < 2:
     print('Usage: {} <base directory>'.format(sys.argv[0]), file=sys.stderr)

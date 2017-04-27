@@ -1,26 +1,22 @@
-"""
-This example demonstrates how to publish messages with WAMP.
+"""This example demonstrates how to publish messages with WAMP."""
 
-First start subscriber.py and take note of which port it's running on.
-"""
-
-import asyncio
 import logging
 import sys
 
-from asphalt.core import ContainerComponent, Context, run_application
+from asphalt.core import CLIApplicationComponent, Context, run_application
 
 logger = logging.getLogger(__name__)
 
 
-class PublisherComponent(ContainerComponent):
+class PublisherComponent(CLIApplicationComponent):
     async def start(self, ctx: Context):
-        self.add_component('wamp', url='ws://localhost:8080')
+        self.add_component('wamp')
         await super().start(ctx)
 
+    async def run(self, ctx: Context):
         topic, message = sys.argv[1:3]
         await ctx.wamp.publish(topic, message)
-        asyncio.get_event_loop().stop()
+
 
 if len(sys.argv) < 3:
     print('Usage: {} <topic> <message>'.format(sys.argv[0]), file=sys.stderr)

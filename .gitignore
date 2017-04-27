@@ -12,6 +12,3 @@ __pycache__/
 docs/_build/
 dist/
 build/
-key.priv
-key.pub
-node.pid

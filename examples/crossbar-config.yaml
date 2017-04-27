@@ -3,7 +3,7 @@ version: 2
 workers:
 - type: router
   realms:
-  - name: default
+  - name: realm1
     roles:
     - name: public
       permissions:

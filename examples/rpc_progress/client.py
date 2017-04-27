@@ -7,22 +7,23 @@ The file path parameter should be a path relative to the directory where the ser
 files from.
 """
 
-import asyncio
 import logging
 import sys
 from pathlib import Path
 from tempfile import mkdtemp
 
-from asphalt.core import ContainerComponent, Context, run_application
+from asphalt.core import CLIApplicationComponent, Context, run_application
+from asphalt.serialization.serializers.cbor import CBORSerializer
 
 logger = logging.getLogger(__name__)
 
 
-class FileGetterComponent(ContainerComponent):
+class FileGetterComponent(CLIApplicationComponent):
     async def start(self, ctx: Context):
-        self.add_component('wamp', url='ws://localhost:8080')
+        self.add_component('wamp', serializer=CBORSerializer())
         await super().start(ctx)
 
+    async def run(self, ctx: Context):
         def on_progress(data: bytes):
             # This gets called for every chunk the server sends (ctx.progress() on the other side)
             outfile.write(data)
@@ -34,7 +35,7 @@ class FileGetterComponent(ContainerComponent):
             await ctx.wamp.call('send_file', remote_path, on_progress=on_progress)
 
         print('\nFile saved as %s' % local_path)
-        asyncio.get_event_loop().stop()
+
 
 if len(sys.argv) < 2:
     print('Usage: {} <file path>'.format(sys.argv[0]), file=sys.stderr)

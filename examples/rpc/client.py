@@ -1,23 +1,22 @@
 """This example demonstrates how to make RPC calls with WAMP."""
 
-import asyncio
 import logging
 import sys
 
-from asphalt.core import ContainerComponent, Context, run_application
+from asphalt.core import CLIApplicationComponent, Context, run_application
 
 logger = logging.getLogger(__name__)
 
 
-class RPCClientComponent(ContainerComponent):
+class RPCClientComponent(CLIApplicationComponent):
     async def start(self, ctx: Context):
-        self.add_component('wamp', url='ws://localhost:8080')
+        self.add_component('wamp')
         await super().start(ctx)
 
+    async def run(self, ctx: Context):
         message = sys.argv[1]
         result = await ctx.wamp.call('uppercase', message)
         logger.info('%r translated to upper case is %r', message, result)
-        asyncio.get_event_loop().stop()
 
 
 if len(sys.argv) < 2:

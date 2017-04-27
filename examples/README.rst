@@ -3,16 +3,12 @@ Running the examples
 
 .. highlight:: bash
 
-The examples in this directory tree require a running Crossbar_ instance with a specific
-configuration. The ``.crossbar`` subdirectory contains a customized Crossbar configuration file
-that will allow all the examples to work as intended. To use this configuration, start Crossbar
-from the ``examples`` directory (assuming the ``crossbar`` command is on your ``PATH``)::
+The examples in this directory tree require a running WAMP router with a specific configuration.
+The fastest way to get it up and running is by using the supplied docker-compose_ configuration
+(``crossbar-config.yaml``). To use this configuration, make sure you have Docker_ and
+docker-compose_ installed and then run::
 
-    crossbar start
+    docker-compose up -d
 
-If have Docker_ installed locally, you can instead use this script to launch it::
-
-    ./crossbar-docker.sh
-
-.. _Crossbar: http://crossbar.io/
-.. _Docker: https://www.docker.com/
+.. _Docker: https://docs.docker.com/engine/installation/
+.. _docker-compose: https://docs.docker.com/compose/install/
