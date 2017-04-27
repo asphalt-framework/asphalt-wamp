@@ -14,6 +14,6 @@ class RPCServerComponent(ContainerComponent):
         self.add_component('wamp', url='ws://localhost:8080')
         await super().start(ctx)
 
-        await ctx.wamp.register_procedure(uppercase, 'uppercase')
+        await ctx.wamp.register(uppercase, 'uppercase')
 
 run_application(RPCServerComponent(), logging=logging.INFO)

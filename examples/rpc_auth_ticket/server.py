@@ -16,6 +16,6 @@ class RPCServerComponent(ContainerComponent):
                            auth_id='testserver', auth_secret='server123')
         await super().start(ctx)
 
-        await ctx.wamp.register_procedure(hello, 'hello')
+        await ctx.wamp.register(hello, 'hello')
 
 run_application(RPCServerComponent(), logging=logging.INFO)

@@ -242,7 +242,7 @@ class WAMPClient:
         subscription = await self._session.subscribe(wrapper, subscriber.topic, options)
         self._subscriptions.append(subscription)
 
-    async def register_procedure(self, handler: Callable, name: str = None, **options) -> None:
+    async def register(self, handler: Callable, name: str = None, **options) -> None:
         """
         Add a procedure handler to the registry and attempt to register it on the router.
 

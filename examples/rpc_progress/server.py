@@ -37,7 +37,7 @@ class FileServerComponent(ContainerComponent):
         await super().start(ctx)
 
         ctx.base_path = Path(sys.argv[1])
-        await ctx.wamp.register_procedure(send_file, 'send_file')
+        await ctx.wamp.register(send_file, 'send_file')
 
 if len(sys.argv) < 2:
     print('Usage: {} <base directory>'.format(sys.argv[0]), file=sys.stderr)

@@ -102,7 +102,7 @@ class TestWAMPClient:
             return end
 
         progress_values = []
-        await wampclient.register_procedure(progressive_procedure, 'test.progressive')
+        await wampclient.register(progressive_procedure, 'test.progressive')
         result = await wampclient.call('test.progressive', 2, 6,
                                        on_progress=progress_values.append)
         assert progress_values == [2, 3, 4, 5]
@@ -114,7 +114,7 @@ class TestWAMPClient:
         def add(ctx, x, y):
             return x + y
 
-        await wampclient.register_procedure(add, 'test.add')
+        await wampclient.register(add, 'test.add')
         result = await wampclient.call('test.add', 2, 3)
         assert result == 5
 
@@ -123,7 +123,7 @@ class TestWAMPClient:
         def add(ctx, x, y):
             return x + y
 
-        await wampclient.register_procedure(add, 'test.add')
+        await wampclient.register(add, 'test.add')
         result = await wampclient.call('test.add', 2, 3)
         assert result == 5
 
@@ -191,7 +191,7 @@ class TestWAMPClient:
             await wampclient.connect()
 
         wampclient.map_exception(TestException, 'test.exception')
-        await wampclient.register_procedure(error, 'test.error')
+        await wampclient.register(error, 'test.error')
         with pytest.raises(TestException):
             await wampclient.call('test.error')
 
@@ -203,7 +203,7 @@ class TestWAMPClient:
 
         """
         with pytest.raises(AssertionError):
-            await wampclient.register_procedure(lambda ctx: None, 'blah', invoke='blabla')
+            await wampclient.register(lambda ctx: None, 'blah', invoke='blabla')
 
         assert wampclient.session_id is None
 
@@ -240,7 +240,7 @@ class TestWAMPClient:
             return x + y
 
         close_task = None
-        await wampclient.register_procedure(sleep_sum)
+        await wampclient.register(sleep_sum)
         await wampclient.subscribe(sleep_subscriber, 'testtopic')
 
         await otherclient.publish('testtopic', acknowledge=True)
