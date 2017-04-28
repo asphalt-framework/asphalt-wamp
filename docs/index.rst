@@ -10,6 +10,7 @@ Table of contents
 
    configuration
    usage
+   dynamic_auth
    versionhistory
 
 * :ref:`API reference <modindex>`
