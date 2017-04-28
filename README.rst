@@ -5,9 +5,11 @@
   :target: https://coveralls.io/github/asphalt-framework/asphalt-wamp?branch=master
   :alt: Code Coverage
 
-This Asphalt framework component provides a WAMP_ (Web Application Message Protocol) client.
+This Asphalt framework component provides a WAMP_ (Web Application Message Protocol) client,
+implemented on top of the autobahn_ library.
 
-It partially relies on the autobahn_ library.
+.. _WAMP: http://wamp-proto.org/
+.. _autobahn: https://pypi.python.org/pypi/autobahn
 
 Project links
 -------------
@@ -17,8 +19,6 @@ Project links
 * `Source code`_
 * `Issue tracker`_
 
-.. _WAMP: http://wamp-proto.org/
-.. _autobahn: https://pypi.python.org/pypi/autobahn
 .. _Documentation: http://asphalt-wamp.readthedocs.org/en/latest/
 .. _Help and support: https://github.com/asphalt-framework/asphalt/wiki/Help-and-support
 .. _Source code: https://github.com/asphalt-framework/asphalt-wamp
