@@ -166,6 +166,7 @@ class WAMPRegistry:
         assert check_argument_types()
         _validate_handler(handler, 'subscriber')
         options = {'match': match or self.subscription_defaults['match']}
+        topic = self.prefix + (topic or handler.__name__)
         subscription = Subscriber(topic, handler, options)
         self.subscriptions.append(subscription)
         return subscription

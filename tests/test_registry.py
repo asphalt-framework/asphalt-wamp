@@ -29,7 +29,7 @@ def test_procedure_bad_argument_count(registry: WAMPRegistry):
         pass
 
     exc = pytest.raises(TypeError, registry.add_procedure, invalid_procedure_handler, 'procedure')
-    assert str(exc.value) == 'procedure handler must accept at least one positional argument'
+    exc.match('procedure handler must accept at least one positional argument')
 
 
 def test_procedure_simple_decorator(registry: WAMPRegistry):
@@ -42,7 +42,7 @@ def test_duplicate_procedure(registry: WAMPRegistry):
     registry.add_procedure(dummyhandler, 'handler')
 
     exc = pytest.raises(ValueError, registry.add_procedure, dummyhandler, 'handler')
-    assert str(exc.value) == 'duplicate registration of procedure "handler"'
+    exc.match('duplicate registration of procedure "handler"')
 
 
 @pytest.mark.parametrize('use_decorator', [False, True])
@@ -61,7 +61,7 @@ def test_subscriber_argument_count(registry: WAMPRegistry):
         pass
 
     exc = pytest.raises(TypeError, registry.add_subscriber, invalid_subscriber, 'topic')
-    assert str(exc.value) == 'subscriber must accept at least one positional argument'
+    exc.match('subscriber must accept at least one positional argument')
 
 
 @pytest.mark.parametrize('use_decorator', [False, True])
@@ -76,7 +76,7 @@ def test_exception_decorator(registry: WAMPRegistry, use_decorator):
 
 def test_invalid_exception(registry: WAMPRegistry):
     exc = pytest.raises(TypeError, registry.map_exception, str, 'x.y.z')
-    assert str(exc.value) == 'exc_type must be a subclass of BaseException'
+    exc.match('exc_type must be a subclass of BaseException')
 
 
 @pytest.mark.parametrize('prefix', ['', 'middle'])
@@ -93,7 +93,8 @@ def test_add_from(prefix):
         procedure_name: Procedure(procedure_name, dummyhandler, parent_registry.procedure_defaults,
                                   {})
     }
-    assert parent_registry.subscriptions == [Subscriber('topic', dummyhandler, {'match': 'exact'})]
+    assert parent_registry.subscriptions == [
+        Subscriber('parent.child.topic', dummyhandler, {'match': 'exact'})]
     assert parent_registry.exceptions == {'x.y.z': RuntimeError}
 
 

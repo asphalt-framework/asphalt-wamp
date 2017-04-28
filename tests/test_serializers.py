@@ -33,4 +33,4 @@ def test_wrap_serializer(serializer):
 
 def test_wrap_unsupported_serializer():
     exc = pytest.raises(TypeError, wrap_serializer, YAMLSerializer())
-    assert str(exc.value) == 'cannot adapt serializer of type text/yaml'
+    exc.match('cannot adapt serializer of type text/yaml')
