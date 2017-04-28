@@ -3,6 +3,10 @@ Configuration
 
 .. highlight:: yaml
 
+WAMP, being a routed protocol, requires a router to connect to. If you do not have one already,
+the reference implementation, Crossbar_, should work nicely. The recommended way of setting it up
+is with Docker_, though setting up a dedicated virtualenv_ for it would also do the trick.
+
 Most WAMP clients need very little configuration. You usually have to set the realm name, host name
 (if not running on localhost) and port (if not running on port 8080) and TLS, if connecting to a
 remote instance securely.
@@ -45,3 +49,7 @@ for all clients.
 
 For a comprehensive list of all client options, see the documentation of the the
 :class:`~asphalt.wamp.client.WAMPClient` class.
+
+.. _Crossbar: http://crossbar.io/
+.. _Docker: https://docs.docker.com/engine/installation/
+.. _virtualenv: http://python-guide-pt-br.readthedocs.io/en/latest/dev/virtualenvs/
