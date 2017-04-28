@@ -5,6 +5,7 @@ import pkg_resources
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.intersphinx',
+    'sphinx.ext.extlinks',
     'sphinx_autodoc_typehints',
     'sphinxcontrib.asyncio'
 
@@ -27,13 +28,19 @@ exclude_patterns = ['_build']
 pygments_style = 'sphinx'
 highlight_language = 'python3'
 todo_include_todos = False
-autoclass_content = ['special-members']
+autoclass_content = 'special-members'
 
-html_theme = 'classic'
+html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 htmlhelp_basename = project.replace('-', '') + 'doc'
 
+extlinks = {
+    'github': ('https://github.com/asphalt-framework/%s/tree/%s/%%s' % (project, version),
+               None)
+}
+
 intersphinx_mapping = {
     'python': ('http://docs.python.org/3/', None),
+    'autobahn': ('http://autobahn.readthedocs.io/en/latest/', None),
     'asphalt': ('http://asphalt.readthedocs.org/en/latest/', None),
     'asphalt-serialization': ('http://asphalt-serialization.readthedocs.org/en/latest/', None)}
