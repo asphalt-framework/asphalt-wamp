@@ -403,8 +403,9 @@ class WAMPClient:
                             attempts > self.max_reconnection_attempts):
                         raise
 
-                    logger.info('Connection failed (attempt %d): %s(%s); reconnecting in %s '
-                                'seconds', attempts, e.__class__.__name__, e, self.reconnect_delay)
+                    logger.warning('Connection failed (attempt %d): %s(%s); reconnecting in %s '
+                                   'seconds', attempts, e.__class__.__name__, e,
+                                   self.reconnect_delay)
                     await sleep(self.reconnect_delay)
 
             # Notify listeners that we've joined the realm
