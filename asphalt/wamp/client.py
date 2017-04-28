@@ -54,8 +54,9 @@ class AsphaltSession(ApplicationSession):
             if not self.__join_future.done():
                 self.__join_future.set_exception(ConnectionError(details.message))
         elif details.reason == CloseDetails.REASON_TRANSPORT_LOST:
-            logger.error('Connection lost; reconnecting')
-            self.__client.connect()
+            if self.__join_future.done():
+                logger.error('Connection lost; reconnecting')
+                self.__client.connect()
 
     def onDisconnect(self):
         if not self.__join_future.done():
@@ -371,31 +372,29 @@ class WAMPClient:
 
                     # Register exception mappings with the session
                     logger.debug(
-                        'Realm %r joined; registering %d exception(s), %d subscription(s) and %d '
-                        'procedure(s)', self._session_details.realm,
-                        len(self._registry.exceptions), len(self._registry.subscriptions),
-                        len(self._registry.procedures))
+                        'Realm %r joined; registering %d procedure(s), %d subscription(s) and %d '
+                        'exception(s)', self._session_details.realm,
+                        len(self._registry.procedures), len(self._registry.subscriptions),
+                        len(self._registry.exceptions))
                     for error, exc_type in self._registry.exceptions.items():
                         self._session.define(exc_type, error)
 
-                    # Register procedures and subscribers with the session
-                    tasks = [self._loop.create_task(self._subscribe(subscriber)) for
-                             subscriber in self._registry.subscriptions]
-                    tasks += [self._loop.create_task(self._register(procedure)) for
-                              procedure in self._registry.procedures.values()]
-                    if tasks:
-                        done, not_done = await wait(tasks, loop=self._loop, timeout=10,
-                                                    return_when=FIRST_EXCEPTION)
-                        for task in done:
-                            if task.exception():
-                                raise task.exception()
+                    # Register procedures with the session
+                    for procedure in self._registry.procedures.values():
+                        await wait_for(self._register(procedure), 10)
+
+                    # Register subscribers with the session
+                    for subscriber in self._registry.subscriptions:
+                        await wait_for(self._subscribe(subscriber), 10)
                 except CancelledError:
                     if transport:
                         transport.close()
 
                     raise
                 except Exception as e:
-                    if transport:
+                    if self._session:
+                        await self._session.leave()
+                    elif transport:
                         transport.close()
 
                     self._session = self._session_details = transport = None
