@@ -49,6 +49,8 @@ class AsphaltSession(ApplicationSession):
         self.__client._session = None
         self.__client._session_details = None
         self.__client._connect_task = None
+        self.__client._subscriptions.clear()
+        self.__client._registrations.clear()
         self.__client.realm_left.dispatch(details)
         if details.reason == 'wamp.error.not_authorized':
             if not self.__join_future.done():
@@ -193,6 +195,7 @@ class WAMPClient:
             await self._session.leave()
         elif self._connect_task and not self._connect_task.done():
             self._connect_task.cancel()
+            self._connect_task.exception()
             self._connect_task = None
 
     def map_exception(self, exc_class: type, error: str) -> None:
