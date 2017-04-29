@@ -7,7 +7,7 @@ from typeguard import check_argument_types
 __all__ = ('Procedure', 'Subscriber', 'WAMPRegistry')
 
 Procedure = NamedTuple('Procedure', [('name', str), ('handler', Callable),
-                                     ('options', Dict[str, Any]), ('metadata', dict)])
+                                     ('options', Dict[str, Any])])
 Subscriber = NamedTuple('Subscriber', [('topic', str), ('handler', Callable),
                                        ('options', Dict[str, Any])])
 
@@ -79,7 +79,7 @@ class WAMPRegistry:
         self.exceptions = OrderedDict()
 
     def add_procedure(self, handler: Callable, name: str = None, *, match: str = None,
-                      invoke: str = None, metadata: dict = None) -> Procedure:
+                      invoke: str = None) -> Procedure:
         """
         Add a procedure handler.
 
@@ -92,7 +92,6 @@ class WAMPRegistry:
             use the callable's internal name
         :param match: one of ``exact``, ``prefix``, ``wildcard``
         :param invoke: one of ``single``, ``roundrobin``, ``random``, ``first``, ``last``
-        :param metadata: a dictionary containing arbitrary metadata about the procedure
         :return: the procedure registration object
         :raises TypeError: if the handler does not accept at least a single positional argument
         :raises ValueError: if there is already a handler registered for this endpoint
@@ -108,14 +107,14 @@ class WAMPRegistry:
         options = {'match': match or self.procedure_defaults['match'],
                    'invoke': invoke or self.procedure_defaults['invoke']}
         name = self.prefix + (name or handler.__name__)
-        registration = Procedure(name, handler, options, metadata or {})
+        registration = Procedure(name, handler, options)
         if self.procedures.setdefault(name, registration) is not registration:
             raise ValueError('duplicate registration of procedure "{}"'.format(name))
 
         return registration
 
     def procedure(self, name: Union[str, Callable] = None, *, match: str = None,
-                  invoke: str = None, metadata: dict = None) -> Callable:
+                  invoke: str = None) -> Callable:
         """
         Decorator version of :meth:`add_procedure`.
 
@@ -126,11 +125,10 @@ class WAMPRegistry:
         :param name: name of the endpoint to register (relative to registry's prefix)
         :param match: one of ``exact``, ``prefix``, ``wildcard``
         :param invoke: one of ``single``, ``roundrobin``, ``random``, ``first``, ``last``
-        :param metadata: a dictionary containing arbitrary metadata about the procedure
 
         """
         def wrapper(handler: Callable):
-            self.add_procedure(handler, name, match=match, invoke=invoke, metadata=metadata)
+            self.add_procedure(handler, name, match=match, invoke=invoke)
             return handler
 
         if inspect.isfunction(name):
