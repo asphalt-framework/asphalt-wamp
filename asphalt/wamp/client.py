@@ -229,19 +229,19 @@ class WAMPClient:
         self._registrations.append(registration)
 
     async def _subscribe(self, subscriber: Subscriber):
-        async def wrapper(*args, _event_details: EventDetails, **kwargs):
+        async def wrapper(*args, details: EventDetails, **kwargs):
             current_task = Task.current_task(loop=self._loop)
             self._request_tasks.add(current_task)
             try:
                 async with EventContext(self._parent_context, self._session_details,
-                                        _event_details) as ctx:
+                                        details) as ctx:
                     retval = subscriber.handler(ctx, *args, **kwargs)
                     if isawaitable(retval):
                         await retval
             finally:
                 self._request_tasks.remove(current_task)
 
-        options = SubscribeOptions(details_arg='_event_details', **subscriber.options)
+        options = SubscribeOptions(details=True, **subscriber.options)
         subscription = await self._session.subscribe(wrapper, subscriber.topic, options)
         self._subscriptions.append(subscription)
 
