@@ -99,7 +99,7 @@ class WAMPClient:
     realm_joined = Signal(SessionJoinEvent)
     realm_left = Signal(SessionLeaveEvent)
 
-    def __init__(self, host: str = 'localhost', port: int = 8080, path: str = '/',
+    def __init__(self, host: str = 'localhost', port: int = 8080, path: str = '/ws',
                  realm: str = 'realm1', *, reconnect_delay: Union[int, float] = 5,
                  max_reconnection_attempts: Optional[int] = 15,
                  registry: Union[WAMPRegistry, str] = None, tls: bool = False,

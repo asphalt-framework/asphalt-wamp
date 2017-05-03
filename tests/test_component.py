@@ -32,7 +32,7 @@ async def test_single_client(context):
 async def test_multiple_clients(context):
     component = WAMPComponent(clients={
         'wamp1': {'host': '192.168.10.1', 'port': 8085},
-        'wamp2': {'path': '/ws'}
+        'wamp2': {'path': '/'}
     }, auth_id='username')
     await component.start(context)
 
@@ -40,8 +40,8 @@ async def test_multiple_clients(context):
     assert isinstance(context.wamp2, WAMPClient)
     assert context.wamp1.host == '192.168.10.1'
     assert context.wamp1.port == 8085
-    assert context.wamp1.path == '/'
+    assert context.wamp1.path == '/ws'
     assert context.wamp2.host == 'localhost'
     assert context.wamp2.port == 8080
-    assert context.wamp2.path == '/ws'
+    assert context.wamp2.path == '/'
     assert context.wamp1.auth_id == context.wamp2.auth_id == 'username'
