@@ -1,7 +1,6 @@
 import logging
 from asyncio import (  # noqa
-    wait, wait_for, sleep, Future, FIRST_EXCEPTION, Task, shield, AbstractEventLoop,
-    CancelledError)
+    wait, wait_for, sleep, Future, Task, shield, AbstractEventLoop, CancelledError, gather)
 from functools import partial
 from inspect import isawaitable
 from ssl import SSLContext
@@ -179,23 +178,23 @@ class WAMPClient:
         realm and disconnects from the router.
 
         """
-        sub_futures = [sub.unsubscribe() for sub in self._subscriptions if sub.active]
-        proc_futures = [reg.unregister() for reg in self._registrations if reg.active]
-        if sub_futures or proc_futures:
-            logger.info('Unsubscribing %d subscriptions and unregistering %d procedures',
-                        len(sub_futures), len(proc_futures))
-            await wait(sub_futures + proc_futures)
-
-        if self._request_tasks:
-            logger.info('Waiting for %d WAMP subscription/procedure handler tasks to finish',
-                        len(self._request_tasks))
-            await wait(self._request_tasks)
-
         if self._session:
+            sub_futures = [sub.unsubscribe() for sub in self._subscriptions if sub.active]
+            proc_futures = [reg.unregister() for reg in self._registrations if reg.active]
+            if sub_futures or proc_futures:
+                logger.info('Unsubscribing %d subscriptions and unregistering %d procedures',
+                            len(sub_futures), len(proc_futures))
+                await wait(sub_futures + proc_futures)
+
+            if self._request_tasks:
+                logger.info('Waiting for %d WAMP subscription/procedure handler tasks to finish',
+                            len(self._request_tasks))
+                await wait(self._request_tasks)
+
             await self._session.leave()
         elif self._connect_task and not self._connect_task.done():
             self._connect_task.cancel()
-            self._connect_task.exception()
+            await gather(self._connect_task, return_exceptions=True)
             self._connect_task = None
 
     def map_exception(self, exc_class: type, error: str) -> None:
