@@ -35,7 +35,7 @@ setup(
     install_requires=[
         'asphalt ~= 3.0',
         'asphalt-serialization ~= 4.0',
-        'autobahn >= 0.18.1'
+        'autobahn >= 17.5.1'
     ],
     extras_require={
         'testing': [

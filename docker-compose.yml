@@ -13,7 +13,7 @@ services:
       CROSSBAR_HOST: crossbar
 
   crossbar:
-    image: crossbario/crossbar:community-pypy3-17.3.1
+    image: crossbario/crossbar:cpy3-17.5.1
     volumes:
       - ./crossbar-config.yaml:/node/.crossbar/config.yaml:ro
-    command: --config /node/.crossbar/config.yaml --loglevel trace
+    command: --loglevel trace
