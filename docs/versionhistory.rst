@@ -11,6 +11,7 @@ This library adheres to `Semantic Versioning <http://semver.org/>`_.
 - **BACKWARD INCOMPATIBLE** Changed subscriptions to use the ``details`` keyword argument to accept
   subscription details (since ``details_arg`` is now deprecated in Autobahn)
 - Fixed error during ``WAMPClient.close()`` if a connection attempt was in progress
+- Added compatibility with Asphalt 4.0
 
 **1.0.0** (2017-04-29)
 
