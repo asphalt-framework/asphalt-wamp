@@ -8,7 +8,6 @@ extensions = [
     'sphinx.ext.extlinks',
     'sphinx_autodoc_typehints',
     'sphinxcontrib.asyncio'
-
 ]
 
 templates_path = ['_templates']
@@ -40,7 +39,7 @@ extlinks = {
 }
 
 intersphinx_mapping = {
-    'python': ('http://docs.python.org/3/', None),
+    'python': ('https://docs.python.org/3/', None),
     'autobahn': ('http://autobahn.readthedocs.io/en/latest/', None),
-    'asphalt': ('http://asphalt.readthedocs.org/en/latest/', None),
-    'asphalt-serialization': ('http://asphalt-serialization.readthedocs.org/en/latest/', None)}
+    'asphalt': ('http://asphalt.readthedocs.io/en/latest/', None),
+    'asphalt-serialization': ('http://asphalt-serialization.readthedocs.io/en/latest/', None)}
