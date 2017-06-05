@@ -6,7 +6,7 @@ from asphalt.wamp.events import SessionJoinEvent, SessionLeaveEvent
 def test_join_event(wampclient):
     details = SessionDetails('default', 5)
     event = SessionJoinEvent(wampclient, 'realm_joined', details)
-    assert event.session_id == 5
+    assert event.details.session == 5
 
 
 def test_leave_event(wampclient):

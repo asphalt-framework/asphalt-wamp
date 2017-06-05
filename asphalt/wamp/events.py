@@ -9,14 +9,15 @@ class SessionJoinEvent(Event):
     """
     Signals that the client has joined the WAMP realm on the router.
 
-    :ivar int session_id: session ID on the WAMP router
+    :ivar details: the autobahn-provided session details
+    :vartype details: ~autobahn.wamp.types.SessionDetails
     """
 
-    __slots__ = 'session_id'
+    __slots__ = 'details'
 
     def __init__(self, source, topic: str, session_details: SessionDetails):
         super().__init__(source, topic)
-        self.session_id = session_details.session
+        self.details = session_details
 
 
 class SessionLeaveEvent(Event):

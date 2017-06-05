@@ -10,6 +10,8 @@ This library adheres to `Semantic Versioning <http://semver.org/>`_.
   ``/ws`` to match the default Crossbar configuration
 - **BACKWARD INCOMPATIBLE** Changed subscriptions to use the ``details`` keyword argument to accept
   subscription details (since ``details_arg`` is now deprecated in Autobahn)
+- **BACKWARD INCOMPATIBLE** Replaced ``SessionJoinEvent.session_id`` with the ``details`` attribute
+  which directly exposes all session details provided by Autobahn
 - Fixed error during ``WAMPClient.close()`` if a connection attempt was in progress
 - Added compatibility with Asphalt 4.0
 
