@@ -91,9 +91,6 @@ class WAMPClient:
         the router
     :ivar Signal realm_left: a signal (:class:`~asphalt.wamp.events.SessionLeaveEvent`) dispatched
         when the client has left the realm
-    :ivar str realm: the WAMP realm
-    :ivar str url: the WAMP URL
-    :ivar WAMPRegistry register: the root registry object
     """
 
     realm_joined = Signal(SessionJoinEvent)
@@ -107,8 +104,6 @@ class WAMPClient:
                  serializer: Union[Serializer, str] = None, auth_method: str = 'anonymous',
                  auth_id: str = None, auth_secret: str = None):
         """
-        The following parameters are also available as instance attributes:
-
         :param host: host address of the WAMP router
         :param port: port to connect to
         :param path: HTTP path on the router
@@ -430,3 +425,11 @@ class WAMPClient:
 
         """
         return self._session_details.session if self._session_details else None
+
+    @property
+    def details(self) -> Optional[SessionDetails]:
+        """
+        Return the session details object provided by Autobahn if the session has been established.
+
+        """
+        return self._session_details

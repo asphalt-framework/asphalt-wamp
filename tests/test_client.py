@@ -134,7 +134,7 @@ class TestWAMPClient:
     async def test_auth_wampcra(self, wampclient: WAMPClient):
         await wampclient.connect()
         result = await wampclient.call('wamp.session.get', wampclient.session_id)
-        assert result['authid'] == 'testuser'
+        assert result['authid'] == wampclient.details.authid == 'testuser'
 
     @pytest.mark.parametrize('wampclient', [
         {'auth_method': 'ticket', 'auth_id': 'device1', 'auth_secret': 'abc123'}
@@ -143,7 +143,7 @@ class TestWAMPClient:
     async def test_auth_ticket(self, wampclient: WAMPClient):
         await wampclient.connect()
         result = await wampclient.call('wamp.session.get', wampclient.session_id)
-        assert result['authid'] == 'device1'
+        assert result['authid'] == wampclient.details.authid == 'device1'
 
     @pytest.mark.parametrize('wampclient', [
         {'auth_method': 'ticket', 'auth_id': 'device1', 'auth_secret': 'abc124'}
@@ -270,3 +270,6 @@ class TestWAMPClient:
 
     def test_session_id_not_connected(self, wampclient: WAMPClient):
         assert wampclient.session_id is None
+
+    def test_session_details_not_connected(self, wampclient: WAMPClient):
+        assert wampclient.details is None
