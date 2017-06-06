@@ -71,6 +71,7 @@ class WAMPRegistry:
         self.procedure_defaults = procedure_defaults or {}
         self.procedure_defaults.setdefault('match', 'exact')
         self.procedure_defaults.setdefault('invoke', 'single')
+        self.procedure_defaults.setdefault('concurrency', None)
         self.subscription_defaults = subscription_defaults or {}
         self.subscription_defaults.setdefault('match', 'exact')
 
@@ -79,7 +80,7 @@ class WAMPRegistry:
         self.exceptions = OrderedDict()
 
     def add_procedure(self, handler: Callable, name: str = None, *, match: str = None,
-                      invoke: str = None) -> Procedure:
+                      invoke: str = None, concurrency: int = None) -> Procedure:
         """
         Add a procedure handler.
 
@@ -92,6 +93,7 @@ class WAMPRegistry:
             use the callable's internal name
         :param match: one of ``exact``, ``prefix``, ``wildcard``
         :param invoke: one of ``single``, ``roundrobin``, ``random``, ``first``, ``last``
+        :param concurrency: maximum allowed number of requests to run this procedure at once
         :return: the procedure registration object
         :raises TypeError: if the handler does not accept at least a single positional argument
         :raises ValueError: if there is already a handler registered for this endpoint
@@ -105,7 +107,8 @@ class WAMPRegistry:
         assert check_argument_types()
         _validate_handler(handler, 'procedure handler')
         options = {'match': match or self.procedure_defaults['match'],
-                   'invoke': invoke or self.procedure_defaults['invoke']}
+                   'invoke': invoke or self.procedure_defaults['invoke'],
+                   'concurrency': concurrency or self.procedure_defaults['concurrency']}
         name = self.prefix + (name or handler.__name__)
         registration = Procedure(name, handler, options)
         if self.procedures.setdefault(name, registration) is not registration:
@@ -114,7 +117,7 @@ class WAMPRegistry:
         return registration
 
     def procedure(self, name: Union[str, Callable] = None, *, match: str = None,
-                  invoke: str = None) -> Callable:
+                  invoke: str = None, concurrency: int = None) -> Callable:
         """
         Decorator version of :meth:`add_procedure`.
 
@@ -125,10 +128,11 @@ class WAMPRegistry:
         :param name: name of the endpoint to register (relative to registry's prefix)
         :param match: one of ``exact``, ``prefix``, ``wildcard``
         :param invoke: one of ``single``, ``roundrobin``, ``random``, ``first``, ``last``
+        :param concurrency: maximum allowed number of requests to run this procedure at once
 
         """
         def wrapper(handler: Callable):
-            self.add_procedure(handler, name, match=match, invoke=invoke)
+            self.add_procedure(handler, name, match=match, invoke=invoke, concurrency=concurrency)
             return handler
 
         if inspect.isfunction(name):

@@ -14,7 +14,7 @@ async def dummyhandler(ctx):
 
 @pytest.mark.parametrize('use_decorator', [False, True])
 def test_procedure(registry: WAMPRegistry, use_decorator):
-    options = {'match': 'prefix', 'invoke': 'roundrobin'}
+    options = {'match': 'prefix', 'invoke': 'roundrobin', 'concurrency': None}
     if use_decorator:
         registry.procedure(name='procedurename', **options)(dummyhandler)
     else:

@@ -14,6 +14,7 @@ This library adheres to `Semantic Versioning <http://semver.org/>`_.
   which directly exposes all session details provided by Autobahn
 - Fixed error during ``WAMPClient.close()`` if a connection attempt was in progress
 - Added compatibility with Asphalt 4.0
+- Added the ``concurrency`` option for procedure registration
 
 **1.0.0** (2017-04-29)
 
