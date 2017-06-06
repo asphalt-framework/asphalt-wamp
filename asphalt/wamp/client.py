@@ -277,7 +277,7 @@ class WAMPClient:
 
     async def publish(self, topic: str, *args, acknowledge: bool = False, exclude_me: bool = None,
                       exclude: Iterable[int] = None, eligible: Iterable[int] = None,
-                      **kwargs) -> Optional[int]:
+                      retain: bool = None, **kwargs) -> Optional[int]:
         """
         Publish an event on the given topic.
 
@@ -288,6 +288,7 @@ class WAMPClient:
             it has any matching subscriptions
         :param exclude: iterable of WAMP session IDs to exclude from receiving this event
         :param eligible: list of WAMP session IDs eligible to receive this event
+        :param retain: if ``True``, request that the broker retain this publication
         :param kwargs: keyword arguments to pass to subscribers
         :return: publication ID (with ``acknowledge=True``)
 
@@ -299,7 +300,8 @@ class WAMPClient:
         kwargs['options'] = PublishOptions(
             acknowledge=acknowledge, exclude_me=exclude_me,
             exclude=list(exclude) if exclude else None,
-            eligible=list(eligible) if eligible else None)
+            eligible=list(eligible) if eligible else None,
+            retain=retain)
         retval = self._session.publish(topic, *args, **kwargs)
         if acknowledge:
             publication = await retval

@@ -17,6 +17,7 @@ This library adheres to `Semantic Versioning <http://semver.org/>`_.
 - Added the ``WAMPClient.details`` property which returns the session details when joined to one
 - Added the ``concurrency`` option for procedure registration
 - Added the ``get_retained`` option for subscription registration
+- Added the ``retain`` option for ``WAMPClient.publish()``
 
 **1.0.0** (2017-04-29)
 
