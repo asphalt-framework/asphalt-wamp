@@ -47,7 +47,7 @@ def test_duplicate_procedure(registry: WAMPRegistry):
 
 @pytest.mark.parametrize('use_decorator', [False, True])
 def test_subscriber(registry: WAMPRegistry, use_decorator):
-    options = {'match': 'prefix'}
+    options = {'match': 'prefix', 'get_retained': None}
     if use_decorator:
         registry.subscriber('topic', **options)(dummyhandler)
     else:
@@ -93,7 +93,7 @@ def test_add_from(prefix):
         procedure_name: Procedure(procedure_name, dummyhandler, parent_registry.procedure_defaults)
     }
     assert parent_registry.subscriptions == [
-        Subscriber('parent.child.topic', dummyhandler, {'match': 'exact'})]
+        Subscriber('parent.child.topic', dummyhandler, {'match': 'exact', 'get_retained': None})]
     assert parent_registry.exceptions == {'x.y.z': RuntimeError}
 
 

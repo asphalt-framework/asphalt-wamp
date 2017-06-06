@@ -74,6 +74,7 @@ class WAMPRegistry:
         self.procedure_defaults.setdefault('concurrency', None)
         self.subscription_defaults = subscription_defaults or {}
         self.subscription_defaults.setdefault('match', 'exact')
+        self.subscription_defaults.setdefault('get_retained', None)
 
         self.procedures = OrderedDict()
         self.subscriptions = []
@@ -142,7 +143,7 @@ class WAMPRegistry:
         return wrapper
 
     def add_subscriber(self, handler: Callable[..., Awaitable], topic: str, *,
-                       match: str = None) -> Subscriber:
+                       match: str = None, get_retained: bool = None) -> Subscriber:
         """
         Decorator that registers a callable to receive events on the given topic.
 
@@ -156,6 +157,8 @@ class WAMPRegistry:
         :param handler: callable that receives matching events
         :param topic: the topic to listen to
         :param match: one of ``exact``, ``prefix`` or ``wildcard`` (omit for the default value)
+        :param get_retained: ``True`` if the subscriber wants to also receive the "retained"
+            message the subscription may have
         :return: the subscription registration object
         :raises TypeError: if the handler is not a coroutine or does not accept at least a single
             positional argument
@@ -167,18 +170,21 @@ class WAMPRegistry:
         """
         assert check_argument_types()
         _validate_handler(handler, 'subscriber')
-        options = {'match': match or self.subscription_defaults['match']}
+        options = {'match': match or self.subscription_defaults['match'],
+                   'get_retained': get_retained or self.subscription_defaults['get_retained']}
         topic = self.prefix + (topic or handler.__name__)
         subscription = Subscriber(topic, handler, options)
         self.subscriptions.append(subscription)
         return subscription
 
-    def subscriber(self, topic: str, *, match: str = None) -> Callable:
+    def subscriber(self, topic: str, *, match: str = None, get_retained: bool = None) -> Callable:
         """
         Decorator version of :meth:`add_subscriber`.
 
         :param topic: the topic to listen to
         :param match: one of ``exact``, ``prefix`` or ``wildcard``
+        :param get_retained: ``True`` if the subscriber wants to also receive the "retained"
+            message the subscription may have
 
         .. seealso:: `How subscriptions work <http://crossbar.io/docs/How-Subscriptions-Work/>`_
         .. seealso:: `Pattern based subscriptions
@@ -186,7 +192,7 @@ class WAMPRegistry:
 
         """
         def wrapper(handler: Callable):
-            self.add_subscriber(handler, topic, match=match)
+            self.add_subscriber(handler, topic, match=match, get_retained=get_retained)
             return handler
 
         return wrapper
