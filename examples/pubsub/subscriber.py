@@ -13,7 +13,7 @@ def subscriber(ctx: EventContext, message: str):
     logger.info('Received message from %s: %s', ctx.topic, message)
 
 
-class PublisherComponent(ContainerComponent):
+class SubscriberComponent(ContainerComponent):
     async def start(self, ctx: Context):
         self.add_component('wamp')
         await super().start(ctx)
@@ -27,4 +27,4 @@ if len(sys.argv) < 2:
     print('Usage: {} <topic>'.format(sys.argv[0]), file=sys.stderr)
     sys.exit(1)
 
-run_application(PublisherComponent(), logging=logging.INFO)
+run_application(SubscriberComponent(), logging=logging.INFO)
