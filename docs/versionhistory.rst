@@ -3,7 +3,7 @@ Version history
 
 This library adheres to `Semantic Versioning <http://semver.org/>`_.
 
-**2.0.0**
+**2.0.0** (2017-06-07)
 
 - **BACKWARD INCOMPATIBLE** Upgraded minimum Autobahn version to v17.5.1
 - **BACKWARD INCOMPATIBLE** Changed the default value of the ``path`` option on ``WAMPClient`` to
