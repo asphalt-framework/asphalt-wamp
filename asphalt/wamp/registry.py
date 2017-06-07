@@ -1,5 +1,5 @@
 import inspect
-from collections import OrderedDict, Awaitable
+from collections import OrderedDict
 from typing import Callable, Dict, Any, Union, NamedTuple, TypeVar
 
 from autobahn.wamp.types import SubscribeOptions, RegisterOptions

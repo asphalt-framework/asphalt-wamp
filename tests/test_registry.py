@@ -1,7 +1,7 @@
 import pytest
 from autobahn.wamp.types import RegisterOptions, SubscribeOptions
 
-from asphalt.wamp.registry import WAMPRegistry, Subscriber, Procedure
+from asphalt.wamp.registry import WAMPRegistry
 
 
 @pytest.fixture
