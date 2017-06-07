@@ -1,3 +1,4 @@
+from autobahn.wamp.request import Registration, Subscription
 from autobahn.wamp.types import SessionDetails, CallDetails, EventDetails
 from asphalt.core.context import Context
 
@@ -10,7 +11,8 @@ def test_call_context():
 
     parent = Context()
     session_details = SessionDetails('default', 5)
-    call_details = CallDetails(progress=progress, caller=8, caller_authid='user',
+    registration = Registration(5420493024, 12313423, lambda: None, 'foo.bar')
+    call_details = CallDetails(registration, progress=progress, caller=8, caller_authid='user',
                                caller_authrole='role', procedure='procedurename')
     context = CallContext(parent, session_details, call_details)
 
@@ -26,8 +28,9 @@ def test_call_context():
 def test_event_context():
     parent = Context()
     session_details = SessionDetails('default', 5)
-    event_details = EventDetails(publication=15, publisher=8, publisher_authid='user',
-                                 publisher_authrole='role', topic='topic')
+    subscription = Subscription(1230643, 'foo.bar', 5420493024, lambda: None)
+    event_details = EventDetails(subscription, publication=15, publisher=8,
+                                 publisher_authid='user', publisher_authrole='role', topic='topic')
     context = EventContext(parent, session_details, event_details)
 
     assert context.session_id == 5
