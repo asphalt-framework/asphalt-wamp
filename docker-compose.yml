@@ -8,9 +8,9 @@ services:
       - crossbar
     volumes:
       - .:/app
-    working_dir: /app
     environment:
       CROSSBAR_HOST: crossbar
+    entrypoint: dockerize -wait http://crossbar:8080 pytest
 
   crossbar:
     image: crossbario/crossbar:cpy3-17.5.1

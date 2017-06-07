@@ -40,6 +40,8 @@ setup(
     ],
     extras_require={
         'testing': [
+            'cbor2',
+            'msgpack-python',
             'pytest',
             'pytest-cov',
             'pytest-catchlog',
