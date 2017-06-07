@@ -3,8 +3,10 @@ import os
 import re
 
 import pytest
+from autobahn.wamp import ApplicationError
+
 from asphalt.core import executor
-from autobahn.wamp.types import Challenge
+from autobahn.wamp.types import Challenge, PublishOptions, CallOptions
 
 from asphalt.wamp.client import WAMPClient, AsphaltSession, ConnectionError
 from asphalt.wamp.events import SessionJoinEvent, SessionLeaveEvent
@@ -104,7 +106,7 @@ class TestWAMPClient:
         progress_values = []
         await wampclient.register(progressive_procedure, 'test.progressive')
         result = await wampclient.call('test.progressive', 2, 6,
-                                       on_progress=progress_values.append)
+                                       options=CallOptions(on_progress=progress_values.append))
         assert progress_values == [2, 3, 4, 5]
         assert result == 6
 
@@ -157,7 +159,7 @@ class TestWAMPClient:
 
     @pytest.mark.asyncio
     async def test_publish_autoconnect(self, wampclient: WAMPClient):
-        result = await wampclient.publish('test.topic', acknowledge=True)
+        result = await wampclient.publish('test.topic', options=PublishOptions(acknowledge=True))
         assert result
 
     @pytest.mark.parametrize('connect_first', [False, True])
@@ -172,8 +174,8 @@ class TestWAMPClient:
             await wampclient.connect()
 
         await wampclient.subscribe(subscriber, 'test.topic')
-        publication_id = await wampclient.publish('test.topic', 2, 3, exclude_me=False,
-                                                  acknowledge=True)
+        publication_id = await wampclient.publish(
+            'test.topic', 2, 3, options=PublishOptions(exclude_me=False, acknowledge=True))
         assert isinstance(publication_id, int)
         event = await asyncio.wait_for(q.get(), 2)
         assert event == (2, 3)
@@ -196,14 +198,16 @@ class TestWAMPClient:
             await wampclient.call('test.error')
 
     @pytest.mark.asyncio
-    async def test_connect_procedure_registration_failure(self, wampclient: WAMPClient):
+    async def test_connect_procedure_registration_failure(self, wampclient: WAMPClient,
+                                                          otherclient: WAMPClient):
         """
         Test that a failure in registering the registry's procedures causes the connection attempt
         to fail.
 
         """
-        with pytest.raises(AssertionError):
-            await wampclient.register(lambda ctx: None, 'blah', invoke='blabla')
+        await otherclient.register(lambda ctx: None, 'blah')
+        with pytest.raises(ApplicationError):
+            await wampclient.register(lambda ctx: None, 'blah')
 
         assert wampclient.session_id is None
 
@@ -243,7 +247,7 @@ class TestWAMPClient:
         await wampclient.register(sleep_sum)
         await wampclient.subscribe(sleep_subscriber, 'testtopic')
 
-        await otherclient.publish('testtopic', acknowledge=True)
+        await otherclient.publish('testtopic', options=PublishOptions(acknowledge=True))
         result = await otherclient.call('sleep_sum', 1, 2)
         assert result == 3
         await close_task

@@ -14,17 +14,18 @@ To call a remote procedure, use the :meth:`~asphalt.wamp.client.WAMPClient.call`
     result = await ctx.wamp.call('procedurename', arg1, arg2, arg3='foo')
 
 To receive progressive results from the call, you can give a callback as the ``on_progress``
-argument::
+option::
 
     def progress(status):
         print('operation status: {}'.format(status))
 
-    result = await ctx.wamp.call('procedurename', arg1, arg2, arg3='foo', on_progress=progress)
+    result = await ctx.wamp.call('procedurename', arg1, arg2, arg3='foo',
+                                 options=dict(on_progress=progress))
 
-To set a time limit for how long to wait for the call to complete, use the ``timeout`` argument::
+To set a time limit for how long to wait for the call to complete, use the ``timeout`` option::
 
     # Wait 10 seconds until giving up
-    result = await ctx.wamp.call('procedurename', arg1, arg2, arg3='foo', timeout=10)
+    result = await ctx.wamp.call('procedurename', arg1, arg2, arg3='foo', options=dict(timeout=10))
 
 .. note:: This will **not** stop the remote handler from finishing; it will just make the client
     stop waiting and discard the results of the call.
@@ -69,10 +70,12 @@ in the message::
 
     await ctx.wamp.publish('some_topic', 'hello', 'world', another='argument')
 
-.. warning:: By default, publications are not acknowledged by the router. This means that a
-    published message could be silently discarded if, for example, the publisher does not have
-    proper permissions to publish it. To avoid this, use the ``acknowledge=True`` option when
-    publishing.
+By default, publications are not acknowledged by the router. This means that a published message
+could be silently discarded if, for example, the publisher does not have proper permissions to
+publish it. To avoid this, use the ``acknowledge`` option::
+
+    await ctx.wamp.publish('some_topic', 'hello', 'world', another='argument',
+                           options=dict(acknowledge=True))
 
 Subscribing to topics
 ---------------------
@@ -116,8 +119,7 @@ handlers are distributed over several packages and modules.
 The :class:`~asphalt.wamp.registry.WAMPRegistry` class provides an alternative to this.
 Each registry object stores registered procedure handlers, subscription handlers and mapped
 exceptions, and can apply defaults on each of these. Each registry can have a separate namespace
-prefix so you don't have to repeat it in every single procedure name or topic. Note, however, that
-the namespace prefix does **not** affect mapped exception URIs.
+prefix so you don't have to repeat it in every single procedure name, topic or mapped error.
 
 Suppose you want to register two procedures and one subscriber, all under the ``foo`` prefix and
 you want to apply the ``invoke='roundrobin'`` setting to all procedures::

@@ -4,7 +4,7 @@ from asyncio import (  # noqa
 from functools import partial
 from inspect import isawaitable
 from ssl import SSLContext
-from typing import Callable, Iterable, Optional, Union, Set  # noqa
+from typing import Callable, Optional, Union, Set, Dict, Any  # noqa
 
 from asphalt.core import Context, resolve_reference, Signal
 from asphalt.serialization.api import Serializer
@@ -219,8 +219,8 @@ class WAMPClient:
             finally:
                 self._request_tasks.remove(current_task)
 
-        options = RegisterOptions(details_arg='_call_details', **procedure.options)
-        registration = await self._session.register(wrapper, procedure.name, options)
+        procedure.options.details_arg = '_call_details'
+        registration = await self._session.register(wrapper, procedure.name, procedure.options)
         self._registrations.append(registration)
 
     async def _subscribe(self, subscriber: Subscriber):
@@ -236,86 +236,99 @@ class WAMPClient:
             finally:
                 self._request_tasks.remove(current_task)
 
-        options = SubscribeOptions(details=True, **subscriber.options)
-        subscription = await self._session.subscribe(wrapper, subscriber.topic, options)
+        subscriber.options.details = True
+        subscriber.options.details_arg = 'details'
+        subscription = await self._session.subscribe(wrapper, subscriber.topic, subscriber.options)
         self._subscriptions.append(subscription)
 
-    async def register(self, handler: Callable, name: str = None, **options) -> None:
+    async def register(self, handler: Callable, name: str = None,
+                       options: Union[RegisterOptions, Dict[str, Any]] = None) -> None:
         """
         Add a procedure handler to the registry and attempt to register it on the router.
 
         :param handler: callable that handles calls for the given endpoint
         :param name: name of the endpoint to register (e.g. ``x.y.z``); omit to use the internal
             name of the callable
-        :param options: extra keyword arguments to pass to
-            :meth:`~.registry.WAMPRegistry.add_procedure`
+        :param options: either an Autobahn register options object or a dictionary of keyword
+            arguments to make one
+
+        .. note:: the ``details_arg`` option is set by WAMPClient itself so do not attempt to set
+                  it yourself.
 
         """
         assert check_argument_types()
-        procedure = self._registry.add_procedure(handler, name, **options)
+        if isinstance(options, dict):
+            options = RegisterOptions(**options)
+        elif options is None:
+            options = RegisterOptions()
+
+        procedure = self._registry.add_procedure(handler, name, options)
         if self._session is None:
             await self.connect()  # this will automatically register the procedure
         else:
             await self._register(procedure)
 
-    async def subscribe(self, handler: Callable, topic: str, **options) -> None:
+    async def subscribe(self, handler: Callable, topic: str,
+                        options: Union[SubscribeOptions, Dict[str, Any]] = None) -> None:
         """
         Add a WAMP event subscriber to the registry and attempt to register it on the router.
 
         :param handler: the callable that is called when a message arrives
         :param topic: topic to subscribe to
-        :param options: extra keyword arguments to pass to
-            :meth:`~.registry.WAMPRegistry.add_subscriber`
+        :param options: either an Autobahn subscribe options object or a dictionary of keyword
+            arguments to make one
+
+        .. note:: the ``details`` option is set by WAMPClient itself so do not attempt to set it
+                  yourself.
 
         """
         assert check_argument_types()
-        subscriber = self._registry.add_subscriber(handler, topic, **options)
+        if isinstance(options, dict):
+            options = SubscribeOptions(**options)
+        elif options is None:
+            options = SubscribeOptions()
+
+        subscriber = self._registry.add_subscriber(handler, topic, options)
         if self._session is None:
             await self.connect()  # this will automatically register the subscriber
         else:
             await self._subscribe(subscriber)
 
-    async def publish(self, topic: str, *args, acknowledge: bool = False, exclude_me: bool = None,
-                      exclude: Iterable[int] = None, eligible: Iterable[int] = None,
-                      retain: bool = None, **kwargs) -> Optional[int]:
+    async def publish(self, topic: str, *args,
+                      options: Union[PublishOptions, Dict[str, Any]] = None,
+                      **kwargs) -> Optional[int]:
         """
         Publish an event on the given topic.
 
         :param topic: the topic to publish on
         :param args: positional arguments to pass to subscribers
-        :param acknowledge: ``True`` to wait until the router has acknowledged the event
-        :param exclude_me: ``False`` to have the router also send the event back to the sender if
-            it has any matching subscriptions
-        :param exclude: iterable of WAMP session IDs to exclude from receiving this event
-        :param eligible: list of WAMP session IDs eligible to receive this event
-        :param retain: if ``True``, request that the broker retain this publication
+        :param options: either an Autobahn publish options object or a dictionary of keyword
+            arguments to make one
         :param kwargs: keyword arguments to pass to subscribers
-        :return: publication ID (with ``acknowledge=True``)
+        :return: publication ID (if the ``acknowledge`` option is ``True``)
 
         """
         assert check_argument_types()
         if self._session is None:
             await self.connect()
 
-        kwargs['options'] = PublishOptions(
-            acknowledge=acknowledge, exclude_me=exclude_me,
-            exclude=list(exclude) if exclude else None,
-            eligible=list(eligible) if eligible else None,
-            retain=retain)
-        retval = self._session.publish(topic, *args, **kwargs)
-        if acknowledge:
+        if isinstance(options, dict):
+            options = PublishOptions(**options)
+
+        retval = self._session.publish(topic, *args, options=options, **kwargs)
+        if options and options.acknowledge:
             publication = await retval
             return publication.id
 
-    async def call(self, endpoint: str, *args, on_progress: Callable[..., None] = None,
-                   timeout: int = None, **kwargs):
+    async def call(self, endpoint: str, *args, options: Union[CallOptions, Dict[str, Any]] = None,
+                   **kwargs):
         """
         Call an RPC function.
 
         :param endpoint: name of the endpoint to call
         :param args: positional arguments to call the endpoint with
-        :param on_progress: a callable that will receive progress reports from the endpoint
-        :param timeout: timeout (in seconds) to wait for the completion of the call
+        :param options: either an Autobahn call options object or a dictionary of keyword arguments
+            to make one
         :param kwargs: keyword arguments to call the endpoint with
         :return: the return value of the call
         :raises TimeoutError: if the call times out
@@ -325,7 +338,9 @@ class WAMPClient:
         if self._session is None:
             await self.connect()
 
-        options = CallOptions(on_progress=on_progress, timeout=timeout)
+        if isinstance(options, dict):
+            options = CallOptions(**options)
+
         return await self._session.call(endpoint, *args, options=options, **kwargs)
 
     def connect(self) -> Future:

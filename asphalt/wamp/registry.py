@@ -1,15 +1,17 @@
 import inspect
 from collections import OrderedDict, Awaitable
-from typing import Callable, Dict, Any, Union, NamedTuple
+from typing import Callable, Dict, Any, Union, NamedTuple, TypeVar
 
+from autobahn.wamp.types import SubscribeOptions, RegisterOptions
 from typeguard import check_argument_types
 
 __all__ = ('Procedure', 'Subscriber', 'WAMPRegistry')
 
 Procedure = NamedTuple('Procedure', [('name', str), ('handler', Callable),
-                                     ('options', Dict[str, Any])])
+                                     ('options', RegisterOptions)])
 Subscriber = NamedTuple('Subscriber', [('topic', str), ('handler', Callable),
-                                       ('options', Dict[str, Any])])
+                                       ('options', SubscribeOptions)])
+T_Options = TypeVar('T_Options')
 
 
 def _validate_handler(handler: Callable, kind: str) -> None:
@@ -17,6 +19,15 @@ def _validate_handler(handler: Callable, kind: str) -> None:
     min_args = 2 if inspect.ismethod(handler) else 1
     if not spec.varargs and len(spec.args) < min_args:
         raise TypeError('{} must accept at least one positional argument'.format(kind))
+
+
+def _apply_defaults(options: T_Options, defaults: T_Options) -> None:
+    for attrname in dir(options.__class__):
+        if not attrname.startswith('_'):
+            value = getattr(options, attrname)
+            if value is None:
+                default = getattr(defaults, attrname)
+                setattr(options, attrname, default)
 
 
 class WAMPRegistry:
@@ -33,17 +44,8 @@ class WAMPRegistry:
     the code the connects the client would have to know about every single handler callbacks in
     advance.
 
-    Procedures have the following default registration options:
-
-    * match: ``exact``
-    * invoke: ``single``
-
-    Event subscribers have the following default registration options:
-
-    * match: ``exact``
-
     :ivar procedures: registered procedure handlers
-    :vartype procedures: Dict[str, ProcedureRegistration]
+    :vartype procedures: Dict[str, Procedure]
     :ivar subscriptions: registered event subscribers
     :vartype subscriptions: List[Subscription]
     :ivar exceptions: mapping of WAMP error code to exception class
@@ -53,8 +55,9 @@ class WAMPRegistry:
     __slots__ = ('prefix', 'procedure_defaults', 'subscription_defaults', 'procedures',
                  'subscriptions', 'exceptions')
 
-    def __init__(self, prefix: str = '', *, procedure_defaults: Dict[str, Any] = None,
-                 subscription_defaults: Dict[str, Any] = None):
+    def __init__(self, prefix: str = '', *,
+                 procedure_defaults: Union[RegisterOptions, Dict[str, Any]] = None,
+                 subscription_defaults: Union[SubscribeOptions, Dict[str, Any]] = None):
         """
         :param prefix: a prefix that is added to the name of every registered procedure
         :param procedure_defaults: default values to use for omitted arguments to
@@ -68,20 +71,24 @@ class WAMPRegistry:
             prefix += '.'
 
         self.prefix = prefix
-        self.procedure_defaults = procedure_defaults or {}
-        self.procedure_defaults.setdefault('match', 'exact')
-        self.procedure_defaults.setdefault('invoke', 'single')
-        self.procedure_defaults.setdefault('concurrency', None)
-        self.subscription_defaults = subscription_defaults or {}
-        self.subscription_defaults.setdefault('match', 'exact')
-        self.subscription_defaults.setdefault('get_retained', None)
+        if isinstance(procedure_defaults, dict):
+            procedure_defaults = RegisterOptions(**procedure_defaults)
+        elif procedure_defaults is None:
+            procedure_defaults = RegisterOptions()
 
+        if isinstance(subscription_defaults, dict):
+            subscription_defaults = SubscribeOptions(**subscription_defaults)
+        elif subscription_defaults is None:
+            subscription_defaults = SubscribeOptions()
+
+        self.procedure_defaults = procedure_defaults
+        self.subscription_defaults = subscription_defaults
         self.procedures = OrderedDict()
         self.subscriptions = []
         self.exceptions = OrderedDict()
 
-    def add_procedure(self, handler: Callable, name: str = None, *, match: str = None,
-                      invoke: str = None, concurrency: int = None) -> Procedure:
+    def add_procedure(self, handler: Callable, name: str = None,
+                      options: Union[RegisterOptions, Dict[str, Any]] = None) -> Procedure:
         """
         Add a procedure handler.
 
@@ -92,9 +99,8 @@ class WAMPRegistry:
         :param handler: callable that handles the procedure calls
         :param name: name of the endpoint to register (relative to registry's prefix); if ``None``,
             use the callable's internal name
-        :param match: one of ``exact``, ``prefix``, ``wildcard``
-        :param invoke: one of ``single``, ``roundrobin``, ``random``, ``first``, ``last``
-        :param concurrency: maximum allowed number of requests to run this procedure at once
+        :param options: either an Autobahn register options object or a dictionary of keyword
+            arguments to make one
         :return: the procedure registration object
         :raises TypeError: if the handler does not accept at least a single positional argument
         :raises ValueError: if there is already a handler registered for this endpoint
@@ -107,9 +113,11 @@ class WAMPRegistry:
         """
         assert check_argument_types()
         _validate_handler(handler, 'procedure handler')
-        options = {'match': match or self.procedure_defaults['match'],
-                   'invoke': invoke or self.procedure_defaults['invoke'],
-                   'concurrency': concurrency or self.procedure_defaults['concurrency']}
+
+        if isinstance(options, dict):
+            options = RegisterOptions(**options)
+
+        _apply_defaults(options, self.procedure_defaults)
         name = self.prefix + (name or handler.__name__)
         registration = Procedure(name, handler, options)
         if self.procedures.setdefault(name, registration) is not registration:
@@ -117,8 +125,8 @@ class WAMPRegistry:
 
         return registration
 
-    def procedure(self, name: Union[str, Callable] = None, *, match: str = None,
-                  invoke: str = None, concurrency: int = None) -> Callable:
+    def procedure(self, name: Union[str, Callable] = None,
+                  options: Union[RegisterOptions, Dict[str, Any]] = None) -> Callable:
         """
         Decorator version of :meth:`add_procedure`.
 
@@ -127,13 +135,12 @@ class WAMPRegistry:
         If ``name`` has not been specified, the function name of the handler is used.
 
         :param name: name of the endpoint to register (relative to registry's prefix)
-        :param match: one of ``exact``, ``prefix``, ``wildcard``
-        :param invoke: one of ``single``, ``roundrobin``, ``random``, ``first``, ``last``
-        :param concurrency: maximum allowed number of requests to run this procedure at once
+        :param options: either an Autobahn register options object or a dictionary of keyword
+            arguments to make one
 
         """
         def wrapper(handler: Callable):
-            self.add_procedure(handler, name, match=match, invoke=invoke, concurrency=concurrency)
+            self.add_procedure(handler, name, options)
             return handler
 
         if inspect.isfunction(name):
@@ -142,8 +149,8 @@ class WAMPRegistry:
 
         return wrapper
 
-    def add_subscriber(self, handler: Callable[..., Awaitable], topic: str, *,
-                       match: str = None, get_retained: bool = None) -> Subscriber:
+    def add_subscriber(self, handler: Callable, topic: str,
+                       options: Union[SubscribeOptions, Dict[str, Any]] = None) -> Subscriber:
         """
         Decorator that registers a callable to receive events on the given topic.
 
@@ -156,9 +163,8 @@ class WAMPRegistry:
 
         :param handler: callable that receives matching events
         :param topic: the topic to listen to
-        :param match: one of ``exact``, ``prefix`` or ``wildcard`` (omit for the default value)
-        :param get_retained: ``True`` if the subscriber wants to also receive the "retained"
-            message the subscription may have
+        :param options: either an Autobahn subscribe options object or a dictionary of keyword
+            arguments to make one
         :return: the subscription registration object
         :raises TypeError: if the handler is not a coroutine or does not accept at least a single
             positional argument
@@ -170,21 +176,24 @@ class WAMPRegistry:
         """
         assert check_argument_types()
         _validate_handler(handler, 'subscriber')
-        options = {'match': match or self.subscription_defaults['match'],
-                   'get_retained': get_retained or self.subscription_defaults['get_retained']}
+
+        if isinstance(options, dict):
+            options = SubscribeOptions(**options)
+
+        _apply_defaults(options, self.subscription_defaults)
         topic = self.prefix + (topic or handler.__name__)
         subscription = Subscriber(topic, handler, options)
         self.subscriptions.append(subscription)
         return subscription
 
-    def subscriber(self, topic: str, *, match: str = None, get_retained: bool = None) -> Callable:
+    def subscriber(self, topic: str,
+                   options: Union[SubscribeOptions, Dict[str, Any]] = None) -> Callable:
         """
         Decorator version of :meth:`add_subscriber`.
 
         :param topic: the topic to listen to
-        :param match: one of ``exact``, ``prefix`` or ``wildcard``
-        :param get_retained: ``True`` if the subscriber wants to also receive the "retained"
-            message the subscription may have
+        :param options: either an Autobahn subscribe options object or a dictionary of keyword
+            arguments to make one
 
         .. seealso:: `How subscriptions work <http://crossbar.io/docs/How-Subscriptions-Work/>`_
         .. seealso:: `Pattern based subscriptions
@@ -192,7 +201,7 @@ class WAMPRegistry:
 
         """
         def wrapper(handler: Callable):
-            self.add_subscriber(handler, topic, match=match, get_retained=get_retained)
+            self.add_subscriber(handler, topic, options)
             return handler
 
         return wrapper
@@ -210,7 +219,7 @@ class WAMPRegistry:
         if not isinstance(exc_type, type) or not issubclass(exc_type, BaseException):
             raise TypeError('exc_type must be a subclass of BaseException')
 
-        self.exceptions[code] = exc_type
+        self.exceptions[self.prefix + code] = exc_type
 
     def exception(self, error: str) -> Callable:
         """
@@ -230,16 +239,9 @@ class WAMPRegistry:
         Add all the procedures, subscribers and exception mappings from another registry to this
         one.
 
-        If no prefix has been specified, the final name of each added procedure endpoint will be
-        of the form ``<root prefix>.<attached procedure name>``.
-        If a prefix has been specified, the name will be
-        ``<root prefix>.<prefix>.<attached procedure name>``.
-
-        If a prefix is present in both the given registry and the ``prefix`` argument to this
-        method, the ``prefix`` argument value is preferred.
-
-        Prefixes only apply to procedure registrations; event subscriptions and exception mappings
-        are unaffected.
+        If no prefix has been specified, the final name of each added procedure/subscriber endpoint
+        or mapped error will be of the form ``<root prefix>.<name>``.
+        If a prefix has been specified, the name will be ``<root prefix>.<prefix>.<name>``.
 
         :param registry: a WAMP registry
         :param prefix: prefix to add to names of all procedure endpoints
@@ -251,13 +253,14 @@ class WAMPRegistry:
 
         for registration in registry.procedures.values():
             self.add_procedure(registration.handler, prefix + registration.name,
-                               **registration.options)
+                               registration.options)
 
-        for registration in registry.subscriptions:
-            self.add_subscriber(registration.handler, registration.topic, **registration.options)
+        for subscription in registry.subscriptions:
+            self.add_subscriber(subscription.handler, prefix + subscription.topic,
+                                subscription.options)
 
         for error, exc_type in registry.exceptions.items():
-            self.map_exception(exc_type, error)
+            self.map_exception(exc_type, prefix + error)
 
     def __repr__(self, *args, **kwargs):
         return '{}(prefix={!r})'.format(self.__class__.__name__, self.prefix)

@@ -1,27 +1,43 @@
 import pytest
+from autobahn.wamp.types import RegisterOptions, SubscribeOptions
 
 from asphalt.wamp.registry import WAMPRegistry, Subscriber, Procedure
 
 
 @pytest.fixture
 def registry():
-    return WAMPRegistry()
+    return WAMPRegistry(procedure_defaults=RegisterOptions(concurrency=1),
+                        subscription_defaults=SubscribeOptions(get_retained=True))
 
 
 async def dummyhandler(ctx):
     pass
 
 
-@pytest.mark.parametrize('use_decorator', [False, True])
-def test_procedure(registry: WAMPRegistry, use_decorator):
-    options = {'match': 'prefix', 'invoke': 'roundrobin', 'concurrency': None}
-    if use_decorator:
-        registry.procedure(name='procedurename', **options)(dummyhandler)
-    else:
-        registry.add_procedure(dummyhandler, 'procedurename', **options)
+def test_defaults_as_dicts():
+    registry = WAMPRegistry(procedure_defaults=dict(concurrency=1),
+                            subscription_defaults=dict(get_retained=True))
+    assert registry.procedure_defaults.concurrency == 1
+    assert registry.subscription_defaults.get_retained
 
-    expected = Procedure('procedurename', dummyhandler, options)
-    assert registry.procedures == {'procedurename': expected}
+
+@pytest.mark.parametrize('use_dict', [False, True])
+@pytest.mark.parametrize('use_decorator', [False, True])
+def test_procedure(registry: WAMPRegistry, use_dict, use_decorator):
+    options = dict(match='prefix', invoke='roundrobin')
+    if not use_dict:
+        options = RegisterOptions(**options)
+
+    if use_decorator:
+        registry.procedure('procedurename', options)(dummyhandler)
+    else:
+        registry.add_procedure(dummyhandler, 'procedurename', options)
+
+    assert list(registry.procedures.keys()) == ['procedurename']
+    procedure = registry.procedures['procedurename']
+    assert procedure.handler is dummyhandler
+    assert procedure.name == 'procedurename'
+    assert procedure.options.concurrency == 1
 
 
 def test_procedure_bad_argument_count(registry: WAMPRegistry):
@@ -34,8 +50,8 @@ def test_procedure_bad_argument_count(registry: WAMPRegistry):
 
 def test_procedure_simple_decorator(registry: WAMPRegistry):
     registry.procedure(dummyhandler)
-    expected = Procedure('dummyhandler', dummyhandler, registry.procedure_defaults)
-    assert registry.procedures == {'dummyhandler': expected}
+    assert list(registry.procedures.keys()) == ['dummyhandler']
+    assert registry.procedures['dummyhandler'].handler is dummyhandler
 
 
 def test_duplicate_procedure(registry: WAMPRegistry):
@@ -45,15 +61,24 @@ def test_duplicate_procedure(registry: WAMPRegistry):
     exc.match('duplicate registration of procedure "handler"')
 
 
+@pytest.mark.parametrize('use_dict', [False, True])
 @pytest.mark.parametrize('use_decorator', [False, True])
-def test_subscriber(registry: WAMPRegistry, use_decorator):
-    options = {'match': 'prefix', 'get_retained': None}
-    if use_decorator:
-        registry.subscriber('topic', **options)(dummyhandler)
-    else:
-        registry.add_subscriber(dummyhandler, 'topic', **options)
+def test_subscriber(registry: WAMPRegistry, use_dict, use_decorator):
+    options = dict(match='prefix')
+    if not use_dict:
+        options = SubscribeOptions(**options)
 
-    assert registry.subscriptions == [Subscriber('topic', dummyhandler, options)]
+    if use_decorator:
+        registry.subscriber('topic', options)(dummyhandler)
+    else:
+        registry.add_subscriber(dummyhandler, 'topic', options)
+
+    assert len(registry.subscriptions) == 1
+    subscription = registry.subscriptions[0]
+    assert subscription.handler is dummyhandler
+    assert subscription.topic == 'topic'
+    assert subscription.options.match == 'prefix'
+    assert subscription.options.get_retained
 
 
 def test_subscriber_argument_count(registry: WAMPRegistry):
@@ -81,20 +106,32 @@ def test_invalid_exception(registry: WAMPRegistry):
 
 @pytest.mark.parametrize('prefix', ['', 'middle'])
 def test_add_from(prefix):
-    child_registry = WAMPRegistry('child')
-    child_registry.add_procedure(dummyhandler, 'procedure')
-    child_registry.add_subscriber(dummyhandler, 'topic')
+    child_registry = WAMPRegistry('child', procedure_defaults=RegisterOptions(invoke='roundrobin'),
+                                  subscription_defaults=SubscribeOptions(match='prefix'))
+    child_registry.add_procedure(dummyhandler, 'procedure', RegisterOptions(match='exact'))
+    child_registry.add_subscriber(dummyhandler, 'topic', SubscribeOptions(match='exact'))
     child_registry.map_exception(RuntimeError, 'x.y.z')
 
-    parent_registry = WAMPRegistry('parent')
+    parent_registry = WAMPRegistry(
+        'parent', procedure_defaults=RegisterOptions(match='prefix', invoke='first',
+                                                     concurrency=2),
+        subscription_defaults=SubscribeOptions(match='wildcard', get_retained=True)
+    )
     parent_registry.add_from(child_registry, prefix)
+
     procedure_name = 'parent.{}child.procedure'.format((prefix + '.') if prefix else '')
-    assert parent_registry.procedures == {
-        procedure_name: Procedure(procedure_name, dummyhandler, parent_registry.procedure_defaults)
-    }
-    assert parent_registry.subscriptions == [
-        Subscriber('parent.child.topic', dummyhandler, {'match': 'exact', 'get_retained': None})]
-    assert parent_registry.exceptions == {'x.y.z': RuntimeError}
+    assert len(parent_registry.procedures) == 1
+    assert parent_registry.procedures[procedure_name].options.match == 'exact'
+    assert parent_registry.procedures[procedure_name].options.invoke == 'roundrobin'
+    assert parent_registry.procedures[procedure_name].options.concurrency == 2
+
+    expected_topic = 'parent.{}child.topic'.format((prefix + '.') if prefix else '')
+    assert len(parent_registry.subscriptions) == 1
+    assert parent_registry.subscriptions[0].topic == expected_topic
+    assert parent_registry.subscriptions[0].options.match == 'exact'
+
+    exception_name = 'parent.{}child.x.y.z'.format((prefix + '.') if prefix else '')
+    assert parent_registry.exceptions == {exception_name: RuntimeError}
 
 
 def test_repr(registry: WAMPRegistry):
