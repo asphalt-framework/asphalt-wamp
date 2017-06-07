@@ -52,6 +52,7 @@ def test_procedure_simple_decorator(registry: WAMPRegistry):
     registry.procedure(dummyhandler)
     assert list(registry.procedures.keys()) == ['dummyhandler']
     assert registry.procedures['dummyhandler'].handler is dummyhandler
+    assert type(registry.procedures['dummyhandler'].options) is RegisterOptions
 
 
 def test_duplicate_procedure(registry: WAMPRegistry):
@@ -59,6 +60,12 @@ def test_duplicate_procedure(registry: WAMPRegistry):
 
     exc = pytest.raises(ValueError, registry.add_procedure, dummyhandler, 'handler')
     exc.match('duplicate registration of procedure "handler"')
+
+
+def test_subscriber_no_options(registry: WAMPRegistry):
+    registry.add_subscriber(dummyhandler, 'topic')
+    assert len(registry.subscriptions) == 1
+    assert type(registry.subscriptions[0].options) is SubscribeOptions
 
 
 @pytest.mark.parametrize('use_dict', [False, True])

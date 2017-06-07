@@ -116,6 +116,8 @@ class WAMPRegistry:
 
         if isinstance(options, dict):
             options = RegisterOptions(**options)
+        elif options is None:
+            options = RegisterOptions()
 
         _apply_defaults(options, self.procedure_defaults)
         name = self.prefix + (name or handler.__name__)
@@ -179,6 +181,8 @@ class WAMPRegistry:
 
         if isinstance(options, dict):
             options = SubscribeOptions(**options)
+        elif options is None:
+            options = SubscribeOptions()
 
         _apply_defaults(options, self.subscription_defaults)
         topic = self.prefix + (topic or handler.__name__)
