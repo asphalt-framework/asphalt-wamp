@@ -400,11 +400,6 @@ class WAMPClient:
                     # Register subscribers with the session
                     for subscriber in self._registry.subscriptions:
                         await wait_for(self._subscribe(subscriber), 10)
-                except CancelledError:
-                    if transport:
-                        transport.close()
-
-                    raise
                 except Exception as e:
                     if self._session:
                         await self._session.leave()
@@ -412,6 +407,11 @@ class WAMPClient:
                         transport.close()
 
                     self._session = self._session_details = transport = None
+
+                    if isinstance(e, CancelledError):
+                        logger.info('Connection attempt cancelled')
+                        raise
+
                     if (self.max_reconnection_attempts is not None and
                             attempts > self.max_reconnection_attempts):
                         raise
