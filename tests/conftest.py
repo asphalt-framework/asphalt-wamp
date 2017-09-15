@@ -27,7 +27,7 @@ def context(event_loop):
 @pytest.fixture
 def wampclient(request, event_loop, context):
     kwargs = getattr(request, 'param', {})
-    kwargs.setdefault('host', os.getenv('CROSSBAR_HOST', 'localhost'))
+    kwargs.setdefault('host', os.getenv('CROSSBAR_HOST', '127.0.0.1'))
     kwargs.setdefault('max_reconnection_attempts', 0)
     client = WAMPClient(**kwargs)
     event_loop.run_until_complete(client.start(context))
