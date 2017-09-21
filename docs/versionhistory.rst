@@ -3,7 +3,7 @@ Version history
 
 This library adheres to `Semantic Versioning <http://semver.org/>`_.
 
-**2.1.0**
+**2.1.0** (2017-09-21)
 
 - Added the ``protocol_options`` option to ``WAMPClient``
 - Added the ``connection_timeout`` option to ``WAMPClient``
