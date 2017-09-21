@@ -9,6 +9,7 @@ from typing import Callable, Optional, Union, Set, Dict, Any  # noqa
 from asphalt.core import Context, resolve_reference, Signal
 from asphalt.serialization.api import Serializer
 from asphalt.serialization.serializers.json import JSONSerializer
+from async_timeout import timeout
 from autobahn.asyncio.wamp import ApplicationSession
 from autobahn.asyncio.websocket import WampWebSocketClientFactory
 from autobahn.wamp import auth
@@ -98,6 +99,7 @@ class WAMPClient:
 
     def __init__(self, host: str = 'localhost', port: int = 8080, path: str = '/ws',
                  realm: str = 'realm1', *, protocol_options: Dict[str, Any] = None,
+                 connection_timeout: Union[int, float] = 10,
                  reconnect_delay: Union[int, float] = 5,
                  max_reconnection_attempts: Optional[int] = 15,
                  registry: Union[WAMPRegistry, str] = None, tls: bool = False,
@@ -111,6 +113,8 @@ class WAMPClient:
         :param realm: the WAMP realm to join the application session to (defaults to the resource
             name if not specified)
         :param protocol_options: dictionary of Autobahn's `websocket protocol options`_
+        :param connection_timeout: maximum time to wait for the client to connect to the router and
+            join a realm
         :param reconnect_delay: delay between connection attempts (in seconds)
         :param max_reconnection_attempts: maximum number of connection attempts before giving up
         :param registry: a :class:`~asphalt.wamp.registry.WAMPRegistry` instance, a
@@ -133,6 +137,7 @@ class WAMPClient:
         self.port = port
         self.path = path
         self.reconnect_delay = reconnect_delay
+        self.connection_timeout = connection_timeout
         self.max_reconnection_attempts = max_reconnection_attempts
         self.realm = realm
         self.protocol_options = protocol_options or {}
@@ -382,14 +387,16 @@ class WAMPClient:
                     transport_factory = WampWebSocketClientFactory(
                         session_factory, url=url, serializers=serializers, loop=self._loop)
                     transport_factory.setProtocolOptions(**self.protocol_options)
-                    transport, protocol = await self._loop.create_connection(
-                        transport_factory, self.host, self.port,
-                        ssl=self.tls_context or True if self.tls else False)
+                    async with timeout(self.connection_timeout):
+                        transport, protocol = await self._loop.create_connection(
+                            transport_factory, self.host, self.port,
+                            ssl=self.tls_context or True if self.tls else False)
 
-                    # Connection established; wait for the session to join the realm
-                    logger.debug('Connected to %s; attempting to join realm %s', self.host,
-                                 self.realm)
-                    self._session_details, self._session = await wait_for(join_future, timeout=5)
+                        # Connection established; wait for the session to join the realm
+                        logger.debug('Connected to %s; attempting to join realm %s', self.host,
+                                     self.realm)
+                        self._session_details, self._session = await wait_for(join_future,
+                                                                              timeout=5)
 
                     # Register exception mappings with the session
                     logger.debug(
