@@ -97,7 +97,8 @@ class WAMPClient:
     realm_left = Signal(SessionLeaveEvent)
 
     def __init__(self, host: str = 'localhost', port: int = 8080, path: str = '/ws',
-                 realm: str = 'realm1', *, reconnect_delay: Union[int, float] = 5,
+                 realm: str = 'realm1', *, protocol_options: Dict[str, Any] = None,
+                 reconnect_delay: Union[int, float] = 5,
                  max_reconnection_attempts: Optional[int] = 15,
                  registry: Union[WAMPRegistry, str] = None, tls: bool = False,
                  tls_context: Union[str, SSLContext] = None,
@@ -109,6 +110,7 @@ class WAMPClient:
         :param path: HTTP path on the router
         :param realm: the WAMP realm to join the application session to (defaults to the resource
             name if not specified)
+        :param protocol_options: dictionary of Autobahn's `websocket protocol options`_
         :param reconnect_delay: delay between connection attempts (in seconds)
         :param max_reconnection_attempts: maximum number of connection attempts before giving up
         :param registry: a :class:`~asphalt.wamp.registry.WAMPRegistry` instance, a
@@ -122,6 +124,9 @@ class WAMPClient:
         :param auth_id: authentication ID (username)
         :param auth_secret: secret to use for authentication (ticket or password)
 
+        .. _websocket protocol options:
+            http://autobahn.readthedocs.io/en/latest/websocket/programming.html#websocket-options
+
         """
         assert check_argument_types()
         self.host = host
@@ -130,6 +135,7 @@ class WAMPClient:
         self.reconnect_delay = reconnect_delay
         self.max_reconnection_attempts = max_reconnection_attempts
         self.realm = realm
+        self.protocol_options = protocol_options or {}
         self.tls = tls
         self.tls_context = tls_context
         self.serializer = serializer or JSONSerializer()
@@ -375,6 +381,7 @@ class WAMPClient:
                     session_factory = partial(AsphaltSession, self, join_future)
                     transport_factory = WampWebSocketClientFactory(
                         session_factory, url=url, serializers=serializers, loop=self._loop)
+                    transport_factory.setProtocolOptions(**self.protocol_options)
                     transport, protocol = await self._loop.create_connection(
                         transport_factory, self.host, self.port,
                         ssl=self.tls_context or True if self.tls else False)

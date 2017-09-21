@@ -3,6 +3,10 @@ Version history
 
 This library adheres to `Semantic Versioning <http://semver.org/>`_.
 
+**2.1.0**
+
+- Added the ``protocol_options`` option to ``WAMPClient``
+
 **2.0.1** (2017-06-07)
 
 - Fixed failure to register option-less procedures and subscriptions added from a registry
