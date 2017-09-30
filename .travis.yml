@@ -15,10 +15,12 @@ jobs:
 
     - env: TOXENV=flake8
       python: "3.5"
+      before_install: skip
       after_success: skip
 
     - env: TOXENV=mypy
       python: "3.5"
+      before_install: skip
       after_success: skip
 
     - stage: deploy to PyPI
