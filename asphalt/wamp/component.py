@@ -6,7 +6,9 @@ from asphalt.core import Component, Context, merge_config, context_teardown
 from async_generator import yield_
 from typeguard import check_argument_types
 
+from asphalt.exceptions import ExtrasProvider
 from asphalt.wamp.client import WAMPClient
+from asphalt.wamp.extras_providers import WAMPExtrasProvider
 
 __all__ = ('WAMPComponent',)
 
@@ -50,6 +52,8 @@ class WAMPComponent(Component):
         # it up for asyncio here
         txaio.use_asyncio()
         txaio.config.loop = ctx.loop
+
+        ctx.add_resource(WAMPExtrasProvider(), 'wamp', types=[ExtrasProvider])
 
         for resource_name, context_attr, client in self.clients:
             await client.start(ctx)

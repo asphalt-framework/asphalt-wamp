@@ -3,6 +3,10 @@ Version history
 
 This library adheres to `Semantic Versioning <http://semver.org/>`_.
 
+**2.2.0**
+
+- Added integration with asphalt-exceptions
+
 **2.1.0** (2017-09-21)
 
 - Added the ``protocol_options`` option to ``WAMPClient``

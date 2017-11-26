@@ -10,6 +10,7 @@ workers:
       - uri: ''
         match: prefix
         allow: {call: true, publish: true, register: true, subscribe: true}
+        disclose: {caller: true, publisher: true}
     - name: anonymous
       permissions:
       - uri: ''

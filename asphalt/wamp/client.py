@@ -7,12 +7,13 @@ from ssl import SSLContext
 from typing import Callable, Optional, Union, Set, Dict, Any  # noqa
 
 from asphalt.core import Context, resolve_reference, Signal
+from asphalt.exceptions import report_exception
 from asphalt.serialization.api import Serializer
 from asphalt.serialization.serializers.json import JSONSerializer
 from async_timeout import timeout
 from autobahn.asyncio.wamp import ApplicationSession
 from autobahn.asyncio.websocket import WampWebSocketClientFactory
-from autobahn.wamp import auth
+from autobahn.wamp import auth, ApplicationError
 from autobahn.wamp.types import (
     ComponentConfig, SessionDetails, EventDetails, CallDetails, PublishOptions, CallOptions,
     CloseDetails, Challenge, SubscribeOptions, RegisterOptions)
@@ -219,16 +220,23 @@ class WAMPClient:
         async def wrapper(*args, _call_details: CallDetails, **kwargs):
             current_task = Task.current_task(loop=self._loop)
             self._request_tasks.add(current_task)
-            try:
-                async with CallContext(
-                        self._parent_context, self._session_details, _call_details) as ctx:
+            async with CallContext(
+                    self._parent_context, self._session_details, _call_details) as ctx:
+                try:
                     retval = procedure.handler(ctx, *args, **kwargs)
                     if isawaitable(retval):
                         retval = await retval
+                except ApplicationError:
+                    raise  # These are deliberately raised so no need to report them
+                except Exception:
+                    report_exception(
+                        ctx, 'Error running handler for procedure {!r}'.format(procedure.name),
+                        logger=False)
+                    raise
+                finally:
+                    self._request_tasks.remove(current_task)
 
                 return retval
-            finally:
-                self._request_tasks.remove(current_task)
 
         procedure.options.details_arg = '_call_details'
         registration = await self._session.register(wrapper, procedure.name, procedure.options)
@@ -238,14 +246,20 @@ class WAMPClient:
         async def wrapper(*args, details: EventDetails, **kwargs):
             current_task = Task.current_task(loop=self._loop)
             self._request_tasks.add(current_task)
-            try:
-                async with EventContext(self._parent_context, self._session_details,
-                                        details) as ctx:
+            async with EventContext(self._parent_context, self._session_details,
+                                    details) as ctx:
+                try:
                     retval = subscriber.handler(ctx, *args, **kwargs)
                     if isawaitable(retval):
                         await retval
-            finally:
-                self._request_tasks.remove(current_task)
+                except Exception:
+                    report_exception(
+                        ctx, 'Error running subscription handler for topic {!r}'.format(
+                            subscriber.topic),
+                        logger=False)
+                    raise
+                finally:
+                    self._request_tasks.remove(current_task)
 
         subscriber.options.details = True
         subscriber.options.details_arg = 'details'

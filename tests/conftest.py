@@ -1,35 +1,33 @@
-import asyncio
 import os
 
 import pytest
 import txaio
-from asphalt.core import Context
+from async_generator import async_generator, yield_
 
+from asphalt.core import Context
 from asphalt.wamp.client import WAMPClient
 
 
-@pytest.fixture
-def event_loop():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+@pytest.fixture(autouse=True)
+def setup_txaio(event_loop):
     txaio.use_asyncio()
-    txaio.config.loop = loop
-    yield loop
-    loop.close()
+    txaio.config.loop = event_loop
 
 
 @pytest.fixture
-def context(event_loop):
-    with Context() as ctx:
-        yield ctx
+@async_generator
+async def context():
+    async with Context() as ctx:
+        await yield_(ctx)
 
 
 @pytest.fixture
-def wampclient(request, event_loop, context):
+@async_generator
+async def wampclient(request, context):
     kwargs = getattr(request, 'param', {})
     kwargs.setdefault('host', os.getenv('CROSSBAR_HOST', '127.0.0.1'))
     kwargs.setdefault('max_reconnection_attempts', 0)
     client = WAMPClient(**kwargs)
-    event_loop.run_until_complete(client.start(context))
-    yield client
-    event_loop.run_until_complete(client.close())
+    await client.start(context)
+    await yield_(client)
+    await client.close()

@@ -1,15 +1,20 @@
 import asyncio
+import logging
 import os
 import re
+from typing import Dict, Any
 
 import pytest
 from autobahn.wamp import ApplicationError
 
-from asphalt.core import executor
+from asphalt.core import executor, Context, qualified_name
 from autobahn.wamp.types import Challenge, PublishOptions, CallOptions
 
+from asphalt.exceptions import ExtrasProvider
+from asphalt.exceptions.api import ExceptionReporter
 from asphalt.wamp.client import WAMPClient, AsphaltSession, ConnectionError
 from asphalt.wamp.events import SessionJoinEvent, SessionLeaveEvent
+from asphalt.wamp.extras_providers import WAMPExtrasProvider
 
 
 class TestAsphaltSession:
@@ -243,6 +248,7 @@ class TestWAMPClient:
             await asyncio.sleep(0.3)
             return x + y
 
+        caplog.set_level(logging.INFO)
         close_task = None
         await wampclient.register(sleep_sum)
         await wampclient.subscribe(sleep_subscriber, 'testtopic')
@@ -277,3 +283,73 @@ class TestWAMPClient:
 
     def test_session_details_not_connected(self, wampclient: WAMPClient):
         assert wampclient.details is None
+
+    @pytest.mark.parametrize('wampclient', [
+        {'auth_method': 'ticket', 'auth_id': 'device1', 'auth_secret': 'abc123'}
+    ], indirect=True)
+    @pytest.mark.asyncio
+    async def test_sentry_extras_provider_procedure(self, wampclient: WAMPClient,
+                                                    context: Context, monkeypatch):
+        class DummyReporter(ExceptionReporter):
+            def report_exception(self, ctx: Context, exception: BaseException, message: str,
+                                 extra: Dict[str, Any]) -> None:
+                errors.append((exception, message, extra))
+
+        def handler(ctx):
+            raise Exception('foo')
+
+        errors = []
+        context.add_resource(DummyReporter(), types=[ExceptionReporter])
+        context.add_resource(WAMPExtrasProvider(), types=[ExtrasProvider])
+        await wampclient.register(handler, 'dummyprocedure')
+        monkeypatch.setattr('asphalt.wamp.extras_providers.SENTRY_CLASS_NAME',
+                            qualified_name(DummyReporter))
+        with pytest.raises(ApplicationError):
+            await wampclient.call('dummyprocedure')
+
+        assert len(errors) == 1
+        exc, message, extra = errors[0]
+        assert type(exc) is Exception
+        assert str(exc) == 'foo'
+        assert message == "Error running handler for procedure 'dummyprocedure'"
+        assert extra == {'extra': {'procedure': 'dummyprocedure'},
+                         'user_context': {'auth_role': 'authorized_users',
+                                          'id': 'device1',
+                                          'session_id': wampclient.session_id}
+                         }
+
+    @pytest.mark.parametrize('wampclient', [
+        {'auth_method': 'ticket', 'auth_id': 'device1', 'auth_secret': 'abc123'}
+    ], indirect=True)
+    @pytest.mark.asyncio
+    async def test_sentry_extras_provider_subscriber(self, wampclient: WAMPClient,
+                                                     context: Context, monkeypatch):
+        class DummyReporter(ExceptionReporter):
+            def report_exception(self, ctx: Context, exception: BaseException, message: str,
+                                 extra: Dict[str, Any]) -> None:
+                errors.append((exception, message, extra))
+
+        def handler(ctx):
+            ctx.loop.call_soon(event.set)
+            raise Exception('foo')
+
+        event = asyncio.Event()
+        errors = []
+        context.add_resource(DummyReporter(), types=[ExceptionReporter])
+        context.add_resource(WAMPExtrasProvider(), types=[ExtrasProvider])
+        await wampclient.subscribe(handler, 'dummytopic')
+        monkeypatch.setattr('asphalt.wamp.extras_providers.SENTRY_CLASS_NAME',
+                            qualified_name(DummyReporter))
+        await wampclient.publish('dummytopic', options=dict(acknowledge=True, exclude_me=False))
+
+        await event.wait()
+        assert len(errors) == 1
+        exc, message, extra = errors[0]
+        assert type(exc) is Exception
+        assert str(exc) == 'foo'
+        assert message == "Error running subscription handler for topic 'dummytopic'"
+        assert extra == {'extra': {'topic': 'dummytopic'},
+                         'user_context': {'auth_role': 'authorized_users',
+                                          'id': 'device1',
+                                          'session_id': wampclient.session_id}
+                         }
