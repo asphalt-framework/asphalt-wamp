@@ -1,5 +1,4 @@
 import logging
-from asyncio import get_event_loop
 from typing import Any, Dict
 
 import txaio
@@ -50,7 +49,7 @@ class WAMPComponent(Component):
         # Autobahn uses txaio to bridge the API gap between asyncio and Twisted so we need to set
         # it up for asyncio here
         txaio.use_asyncio()
-        txaio.config.loop = get_event_loop()
+        txaio.config.loop = ctx.loop
 
         for resource_name, context_attr, client in self.clients:
             await client.start(ctx)
