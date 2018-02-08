@@ -13,7 +13,7 @@ services:
     entrypoint: dockerize -wait http://crossbar:8080 pytest
 
   crossbar:
-    image: crossbario/crossbar:cpy3-17.9.1
+    image: crossbario/crossbar:cpy3
     volumes:
       - ./crossbar-config.yaml:/node/.crossbar/config.yaml:ro
     command: --loglevel trace
