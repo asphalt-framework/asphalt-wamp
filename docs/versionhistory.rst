@@ -6,6 +6,7 @@ This library adheres to `Semantic Versioning <http://semver.org/>`_.
 **2.2.0**
 
 - Added integration with asphalt-exceptions
+- Raised connection logging level to ``INFO``
 
 **2.1.0** (2017-09-21)
 

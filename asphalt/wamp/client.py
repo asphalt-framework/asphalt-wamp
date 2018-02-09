@@ -1,6 +1,6 @@
 import logging
 from asyncio import (  # noqa
-    wait, wait_for, sleep, Future, Task, shield, AbstractEventLoop, CancelledError, gather)
+    wait, sleep, Future, Task, shield, AbstractEventLoop, CancelledError, gather)
 from functools import partial
 from inspect import isawaitable
 from ssl import SSLContext
@@ -388,7 +388,7 @@ class WAMPClient:
         async def do_connect() -> None:
             proto = 'wss' if self.tls else 'ws'
             url = '{proto}://{self.host}:{self.port}{self.path}'.format(proto=proto, self=self)
-            logger.debug('Connecting to %s:%d (tls=%s)', self.host, self.port, self.tls)
+            logger.info('Connecting to %s', url)
             serializers = [wrap_serializer(self.serializer)]
             transport = None
             attempts = 0
@@ -401,19 +401,19 @@ class WAMPClient:
                     transport_factory = WampWebSocketClientFactory(
                         session_factory, url=url, serializers=serializers, loop=self._loop)
                     transport_factory.setProtocolOptions(**self.protocol_options)
-                    async with timeout(self.connection_timeout):
+                    with timeout(self.connection_timeout):
                         transport, protocol = await self._loop.create_connection(
                             transport_factory, self.host, self.port,
                             ssl=self.tls_context or True if self.tls else False)
 
                         # Connection established; wait for the session to join the realm
-                        logger.debug('Connected to %s; attempting to join realm %s', self.host,
-                                     self.realm)
-                        self._session_details, self._session = await wait_for(join_future,
-                                                                              timeout=5)
+                        logger.info('Connected to %s; attempting to join realm %s', self.host,
+                                    self.realm)
+                        with timeout(5):
+                            self._session_details, self._session = await join_future
 
                     # Register exception mappings with the session
-                    logger.debug(
+                    logger.info(
                         'Realm %r joined; registering %d procedure(s), %d subscription(s) and %d '
                         'exception(s)', self._session_details.realm,
                         len(self._registry.procedures), len(self._registry.subscriptions),
@@ -423,11 +423,13 @@ class WAMPClient:
 
                     # Register procedures with the session
                     for procedure in self._registry.procedures.values():
-                        await wait_for(self._register(procedure), 10)
+                        with timeout(10):
+                            await self._register(procedure)
 
                     # Register subscribers with the session
                     for subscriber in self._registry.subscriptions:
-                        await wait_for(self._subscribe(subscriber), 10)
+                        with timeout(10):
+                            await self._subscribe(subscriber)
                 except Exception as e:
                     if self._session:
                         await self._session.leave()
