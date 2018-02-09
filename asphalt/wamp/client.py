@@ -54,11 +54,10 @@ class AsphaltSession(ApplicationSession):
         self.__client._subscriptions.clear()
         self.__client._registrations.clear()
         self.__client.realm_left.dispatch(details)
-        if details.reason == 'wamp.error.not_authorized':
+        if not self._goodbye_sent:
             if not self.__join_future.done():
                 self.__join_future.set_exception(ConnectionError(details.message))
-        elif details.reason == CloseDetails.REASON_TRANSPORT_LOST:
-            if self.__join_future.done():
+            elif self.__join_future.done():
                 logger.error('Connection lost; reconnecting')
                 self.__client.connect()
 
