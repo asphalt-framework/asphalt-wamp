@@ -7,6 +7,7 @@ This library adheres to `Semantic Versioning <http://semver.org/>`_.
 
 - Added integration with asphalt-exceptions
 - Raised connection logging level to ``INFO``
+- Added a configurable shutdown timeout
 
 **2.1.0** (2017-09-21)
 

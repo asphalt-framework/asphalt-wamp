@@ -1,6 +1,7 @@
 import logging
 from asyncio import (  # noqa
     wait, sleep, Future, Task, shield, AbstractEventLoop, CancelledError, gather)
+from contextlib import suppress
 from functools import partial
 from inspect import isawaitable
 from ssl import SSLContext
@@ -13,7 +14,7 @@ from asphalt.serialization.serializers.json import JSONSerializer
 from async_timeout import timeout
 from autobahn.asyncio.wamp import ApplicationSession
 from autobahn.asyncio.websocket import WampWebSocketClientFactory
-from autobahn.wamp import auth, ApplicationError
+from autobahn.wamp import auth, ApplicationError, SessionNotReady
 from autobahn.wamp.types import (
     ComponentConfig, SessionDetails, EventDetails, CallDetails, PublishOptions, CallOptions,
     CloseDetails, Challenge, SubscribeOptions, RegisterOptions)
@@ -100,9 +101,9 @@ class WAMPClient:
 
     def __init__(self, host: str = 'localhost', port: int = 8080, path: str = '/ws',
                  realm: str = 'realm1', *, protocol_options: Dict[str, Any] = None,
-                 connection_timeout: Union[int, float] = 10,
-                 reconnect_delay: Union[int, float] = 5,
+                 connection_timeout: float = 10, reconnect_delay: float = 5,
                  max_reconnection_attempts: Optional[int] = 15,
+                 shutdown_timeout: Optional[float] = 15,
                  registry: Union[WAMPRegistry, str] = None, tls: bool = False,
                  tls_context: Union[str, SSLContext] = None,
                  serializer: Union[Serializer, str] = None, auth_method: str = 'anonymous',
@@ -118,6 +119,9 @@ class WAMPClient:
             join a realm
         :param reconnect_delay: delay between connection attempts (in seconds)
         :param max_reconnection_attempts: maximum number of connection attempts before giving up
+        :param shutdown_timeout: maximum number of seconds to wait for the client to complete its
+            shutdown sequence (unregister procedures/subscriptions, wait for running handlers to
+            finish, leave the realm)
         :param registry: a :class:`~asphalt.wamp.registry.WAMPRegistry` instance, a
             ``module:varname`` reference or resource name of one
         :param tls: ``True`` to use TLS when connecting to the router
@@ -139,6 +143,7 @@ class WAMPClient:
         self.path = path
         self.reconnect_delay = reconnect_delay
         self.connection_timeout = connection_timeout
+        self.shutdown_timeout = shutdown_timeout
         self.max_reconnection_attempts = max_reconnection_attempts
         self.realm = realm
         self.protocol_options = protocol_options or {}
@@ -188,17 +193,19 @@ class WAMPClient:
         if self._session:
             sub_futures = [sub.unsubscribe() for sub in self._subscriptions if sub.active]
             proc_futures = [reg.unregister() for reg in self._registrations if reg.active]
-            if sub_futures or proc_futures:
-                logger.info('Unsubscribing %d subscriptions and unregistering %d procedures',
-                            len(sub_futures), len(proc_futures))
-                await wait(sub_futures + proc_futures)
+            with timeout(self.shutdown_timeout):
+                if sub_futures or proc_futures:
+                    logger.info('Unsubscribing %d subscriptions and unregistering %d procedures',
+                                len(sub_futures), len(proc_futures))
+                    await wait(sub_futures + proc_futures)
 
-            if self._request_tasks:
-                logger.info('Waiting for %d WAMP subscription/procedure handler tasks to finish',
-                            len(self._request_tasks))
-                await wait(self._request_tasks)
+                if self._request_tasks:
+                    logger.info('Waiting for %d WAMP subscription/procedure handler tasks to '
+                                'finish', len(self._request_tasks))
+                    await wait(self._request_tasks)
 
-            await self._session.leave()
+                with suppress(SessionNotReady):
+                    await self._session.leave()
         elif self._connect_task and not self._connect_task.done():
             self._connect_task.cancel()
             await gather(self._connect_task, return_exceptions=True)
