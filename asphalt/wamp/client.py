@@ -1,11 +1,10 @@
 import logging
-from asyncio import (  # noqa
+from asyncio import (  # noqa: F401
     wait, sleep, Future, Task, shield, AbstractEventLoop, CancelledError, gather)
 from contextlib import suppress
-from functools import partial
 from inspect import isawaitable
 from ssl import SSLContext
-from typing import Callable, Optional, Union, Set, Dict, Any  # noqa
+from typing import Callable, Optional, Union, Set, Dict, Any  # noqa: F401
 
 from asphalt.core import Context, resolve_reference, Signal
 from asphalt.exceptions import report_exception
@@ -17,7 +16,7 @@ from autobahn.asyncio.websocket import WampWebSocketClientFactory
 from autobahn.wamp import auth, ApplicationError, SessionNotReady
 from autobahn.wamp.types import (
     ComponentConfig, SessionDetails, EventDetails, CallDetails, PublishOptions, CallOptions,
-    CloseDetails, Challenge, SubscribeOptions, RegisterOptions)
+    Challenge, SubscribeOptions, RegisterOptions)
 from typeguard import check_argument_types
 
 from asphalt.wamp.context import CallContext, EventContext
@@ -35,53 +34,33 @@ class ConnectionError(Exception):
 
 
 class AsphaltSession(ApplicationSession):
-    def __init__(self, client: 'WAMPClient', join_future: Future):
-        super().__init__(ComponentConfig(client.realm))
-        self.__client = client
-        self.__join_future = join_future
+    def __init__(self, realm: str, auth_method: Optional[str], auth_id: Optional[str],
+                 auth_secret: Optional[str]) -> None:
+        super().__init__(ComponentConfig(realm))
+        self.__auth_method = auth_method
+        self.__auth_id = auth_id
+        self.__auth_secret = auth_secret
 
     def onConnect(self):
-        self.join(self.config.realm, [self.__client.auth_method], self.__client.auth_id)
-
-    def onJoin(self, details: SessionDetails):
-        self.__join_future.set_result((details, self))
-
-    def onLeave(self, details):
-        super().onLeave(details)
-        self.__client._session = None
-        self.__client._session_details = None
-        self.__client._connect_task = None
-        self.__client._subscriptions.clear()
-        self.__client._registrations.clear()
-        self.__client.realm_left.dispatch(details)
-        if not self._goodbye_sent:
-            if not self.__join_future.done():
-                self.__join_future.set_exception(ConnectionError(details.message))
-            elif self.__join_future.done():
-                logger.error('Connection lost; reconnecting')
-                self.__client.connect()
-
-    def onDisconnect(self):
-        if not self.__join_future.done():
-            self.__join_future.set_exception(ConnectionError('connection closed unexpectedly'))
+        self.join(self.config.realm, [self.__auth_method], self.__auth_id)
 
     def onChallenge(self, challenge: Challenge):
-        if challenge.method != self.__client.auth_method:
+        if challenge.method != self.__auth_method:
             raise ConnectionError(
                 'expected authentication method "{}" but received a "{}" challenge instead'.
-                format(self.__client.auth_method, challenge.method))
+                format(self.__auth_method, challenge.method))
 
         if challenge.method == 'wampcra':
-            key = self.__client.auth_secret
+            key = self.__auth_secret
             if 'salt' in challenge.extra:
                 # salted secret
-                key = auth.derive_key(self.__client.auth_secret.encode('utf-8'),
+                key = auth.derive_key(self.__auth_secret.encode('utf-8'),
                                       challenge.extra['salt'], challenge.extra['iterations'],
                                       challenge.extra['keylen'])
 
             return auth.compute_wcs(key, challenge.extra['challenge'])
-        else:  # ticket
-            return self.__client.auth_secret
+        elif challenge.method == 'ticket':  # ticket
+            return self.__auth_secret
 
 
 class WAMPClient:
@@ -392,6 +371,36 @@ class WAMPClient:
 
         """
         async def do_connect() -> None:
+            def create_session() -> AsphaltSession:
+                session = AsphaltSession(self.realm, self.auth_method, self.auth_id,
+                                         self.auth_secret)
+                session.on('disconnect', on_disconnect)
+                session.on('join', on_join)
+                session.on('leave', on_leave)
+                return session
+
+            def on_disconnect(session: AsphaltSession, was_clean: bool):
+                if not was_clean:
+                    join_future.set_exception(ConnectionError('connection closed unexpectedly'))
+
+            def on_join(session: AsphaltSession, details: SessionDetails):
+                session.off('disconnect')
+                join_future.set_result((session, details))
+
+            def on_leave(session: AsphaltSession, details):
+                self._session = None
+                self._session_details = None
+                self._connect_task = None
+                self._subscriptions.clear()
+                self._registrations.clear()
+                self.realm_left.dispatch(details)
+                if not session._goodbye_sent:
+                    if not join_future.done():
+                        join_future.set_exception(ConnectionError(details.message))
+                    elif join_future.done():
+                        logger.error('Connection lost; reconnecting')
+                        self.connect()
+
             proto = 'wss' if self.tls else 'ws'
             url = '{proto}://{self.host}:{self.port}{self.path}'.format(proto=proto, self=self)
             logger.info('Connecting to %s', url)
@@ -403,9 +412,8 @@ class WAMPClient:
                 attempts += 1
                 try:
                     join_future = self._loop.create_future()
-                    session_factory = partial(AsphaltSession, self, join_future)
                     transport_factory = WampWebSocketClientFactory(
-                        session_factory, url=url, serializers=serializers, loop=self._loop)
+                        create_session, url=url, serializers=serializers, loop=self._loop)
                     transport_factory.setProtocolOptions(**self.protocol_options)
                     with timeout(self.connection_timeout):
                         transport, protocol = await self._loop.create_connection(
@@ -415,8 +423,7 @@ class WAMPClient:
                         # Connection established; wait for the session to join the realm
                         logger.info('Connected to %s; attempting to join realm %s', self.host,
                                     self.realm)
-                        with timeout(5):
-                            self._session_details, self._session = await join_future
+                        self._session, self._session_details = await join_future
 
                     # Register exception mappings with the session
                     logger.info(
@@ -442,8 +449,6 @@ class WAMPClient:
                     elif transport:
                         transport.close()
 
-                    self._session = self._session_details = transport = None
-
                     if isinstance(e, CancelledError):
                         logger.info('Connection attempt cancelled')
                         raise
@@ -459,7 +464,6 @@ class WAMPClient:
 
             # Notify listeners that we've joined the realm
             self.realm_joined.dispatch(self._session_details)
-
             logger.info('Joined realm %r', self.realm)
 
         # Start a new connection attempt only if not connected and there is no attempt in progress

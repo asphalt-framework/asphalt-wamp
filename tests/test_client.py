@@ -6,10 +6,9 @@ from typing import Dict, Any
 
 import pytest
 from autobahn.wamp import ApplicationError
-
-from asphalt.core import executor, Context, qualified_name
 from autobahn.wamp.types import Challenge, PublishOptions, CallOptions
 
+from asphalt.core import executor, Context, qualified_name
 from asphalt.exceptions import ExtrasProvider
 from asphalt.exceptions.api import ExceptionReporter
 from asphalt.wamp.client import WAMPClient, AsphaltSession, ConnectionError
@@ -19,26 +18,8 @@ from asphalt.wamp.extras_providers import WAMPExtrasProvider
 
 class TestAsphaltSession:
     @pytest.fixture
-    def session(self, request, event_loop):
-        client = WAMPClient(realm='default', auth_method=request.param, auth_id='foo',
-                            auth_secret='bar')
-        return AsphaltSession(client, event_loop.create_future())
-
-    @pytest.mark.parametrize('future_done', [False, True])
-    @pytest.mark.asyncio
-    async def test_on_disconnect(self, event_loop, wampclient, future_done):
-        future = event_loop.create_future()
-        session = AsphaltSession(wampclient, future)
-        if future_done:
-            future.set_result(None)
-            session.onDisconnect()
-            assert (await future) is None
-        else:
-            with pytest.raises(ConnectionError) as exc:
-                session.onDisconnect()
-                await future
-
-            exc.match('connection closed unexpectedly')
+    def session(self, request):
+        return AsphaltSession('default', request.param, 'foo', 'bar')
 
     @pytest.mark.parametrize('session', ['ticket'], indirect=['session'])
     def test_challenge_mismatch(self, session):
