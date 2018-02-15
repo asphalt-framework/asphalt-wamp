@@ -9,6 +9,7 @@ This library adheres to `Semantic Versioning <http://semver.org/>`_.
 - Raised connection logging level to ``INFO``
 - Added a configurable shutdown timeout
 - Renamed ``WAMPClient.close()`` to ``WAMPClient.stop()``
+- Improved the reliability of the connection/session teardown process
 
 **2.1.0** (2017-09-21)
 

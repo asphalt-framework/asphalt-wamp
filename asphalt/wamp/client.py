@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from asyncio import (  # noqa: F401
     wait, sleep, Future, Task, shield, AbstractEventLoop, CancelledError, gather)
@@ -14,7 +15,7 @@ from asphalt.serialization.serializers.json import JSONSerializer
 from async_timeout import timeout
 from autobahn.asyncio.wamp import ApplicationSession
 from autobahn.asyncio.websocket import WampWebSocketClientFactory
-from autobahn.wamp import auth, ApplicationError, SessionNotReady
+from autobahn.wamp import auth, ApplicationError, SessionNotReady, TransportLost
 from autobahn.wamp.types import (
     ComponentConfig, SessionDetails, EventDetails, CallDetails, PublishOptions, CallOptions,
     Challenge, SubscribeOptions, RegisterOptions)
@@ -176,19 +177,26 @@ class WAMPClient:
         if self._session:
             sub_futures = [sub.unsubscribe() for sub in self._subscriptions if sub.active]
             proc_futures = [reg.unregister() for reg in self._registrations if reg.active]
-            with timeout(self.shutdown_timeout):
-                if sub_futures or proc_futures:
-                    logger.info('Unsubscribing %d subscriptions and unregistering %d procedures',
-                                len(sub_futures), len(proc_futures))
-                    await wait(sub_futures + proc_futures)
+            try:
+                with timeout(self.shutdown_timeout):
+                    if sub_futures or proc_futures:
+                        logger.info(
+                            'Unsubscribing %d subscriptions and unregistering %d procedures',
+                            len(sub_futures), len(proc_futures))
+                        await wait(sub_futures + proc_futures)
 
-                if self._request_tasks:
-                    logger.info('Waiting for %d WAMP subscription/procedure handler tasks to '
-                                'finish', len(self._request_tasks))
-                    await wait(self._request_tasks)
+                    if self._request_tasks:
+                        logger.info(
+                            'Waiting for %d WAMP subscription/procedure handler tasks to finish',
+                            len(self._request_tasks))
+                        await wait(self._request_tasks)
 
-                with suppress(SessionNotReady):
-                    await self._session.leave()
+                    with suppress(SessionNotReady):
+                        await self._session.leave()
+            except TransportLost:
+                pass
+            except asyncio.TimeoutError:
+                self._session.disconnect()
         elif self._connect_task and not self._connect_task.done():
             self._connect_task.cancel()
             await gather(self._connect_task, return_exceptions=True)
@@ -410,10 +418,10 @@ class WAMPClient:
             url = '{proto}://{self.host}:{self.port}{self.path}'.format(proto=proto, self=self)
             logger.info('Connecting to %s', url)
             serializers = [wrap_serializer(self.serializer)]
-            transport = None
             attempts = 0
 
             while self._session is None:
+                transport = None
                 attempts += 1
                 try:
                     join_future = self._loop.create_future()
@@ -450,7 +458,7 @@ class WAMPClient:
                             await self._subscribe(subscriber)
                 except Exception as e:
                     if self._session:
-                        await self._session.leave()
+                        await self.stop()
                     elif transport:
                         transport.close()
 
