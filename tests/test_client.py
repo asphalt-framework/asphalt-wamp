@@ -56,7 +56,7 @@ class TestWAMPClient:
         client = WAMPClient(**kwargs)
         event_loop.run_until_complete(client.start(context))
         yield client
-        event_loop.run_until_complete(client.close())
+        event_loop.run_until_complete(client.stop())
 
     @pytest.mark.asyncio
     async def test_client_events(self, wampclient: WAMPClient):
@@ -67,7 +67,7 @@ class TestWAMPClient:
         wampclient.realm_joined.connect(listener)
         wampclient.realm_left.connect(listener)
         await wampclient.connect()
-        await wampclient.close()
+        await wampclient.stop()
 
         assert len(events) == 2
         assert isinstance(events[0], SessionJoinEvent)
@@ -222,7 +222,7 @@ class TestWAMPClient:
         """
         async def sleep_subscriber(ctx):
             nonlocal close_task
-            close_task = event_loop.create_task(wampclient.close())
+            close_task = event_loop.create_task(wampclient.stop())
             await asyncio.sleep(0.3)
 
         async def sleep_sum(ctx, x, y):

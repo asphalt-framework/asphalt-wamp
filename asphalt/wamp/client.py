@@ -5,6 +5,7 @@ from contextlib import suppress
 from inspect import isawaitable
 from ssl import SSLContext
 from typing import Callable, Optional, Union, Set, Dict, Any  # noqa: F401
+from warnings import warn
 
 from asphalt.core import Context, resolve_reference, Signal
 from asphalt.exceptions import report_exception
@@ -160,6 +161,10 @@ class WAMPClient:
         self._registry = registry
 
     async def close(self):
+        warn('close() has been renamed to stop()', DeprecationWarning)
+        await self.stop()
+
+    async def stop(self):
         """
         Finish outstanding tasks and then disconnect from the router.
 

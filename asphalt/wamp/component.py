@@ -64,5 +64,5 @@ class WAMPComponent(Component):
         await yield_()
 
         for resource_name, context_attr, client in self.clients:
-            await client.close()
+            await client.stop()
             logger.info('Shut down WAMP client (%s)', resource_name)

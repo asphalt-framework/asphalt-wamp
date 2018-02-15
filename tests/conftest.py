@@ -30,4 +30,4 @@ async def wampclient(request, context):
     client = WAMPClient(**kwargs)
     await client.start(context)
     await yield_(client)
-    await client.close()
+    await client.stop()
