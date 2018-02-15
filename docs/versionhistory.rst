@@ -3,7 +3,7 @@ Version history
 
 This library adheres to `Semantic Versioning <http://semver.org/>`_.
 
-**2.2.0**
+**2.2.0** (2018-02-15)
 
 - Added integration with asphalt-exceptions
 - Raised connection logging level to ``INFO``
