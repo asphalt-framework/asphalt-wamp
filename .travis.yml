@@ -30,7 +30,7 @@ jobs:
       before_install: *before_install
       after_success: *after_success
 
-    - stage: deploy to PyPI
+    - stage: deploy to pypi
       install: pip install "setuptools >= 36.2.7"
       script: skip
       deploy:
@@ -39,6 +39,8 @@ jobs:
         password:
           secure: o5tpbl0Ni0XzrFX6ZO4IbX79g5Q/Yk/BRV65AIRh6j16cdMqyaN9BwiA60LfLANCMA/twpsPEDIszAtrJi9A/I6RsIYa0lNSVHqjkMW1CVQTvwTmXF8f4aK066o1VCM/g/oLR7qHmZQHudhzhS+MqyzVSXbq97EQ6RFw4LWe/zNtUwCaGY5wEqZAUnqqjQfr/jR4RYiWzCdrjVXxa9hHc8y6CDtBkA0oMP6WDn0cgNPXatdjzytmeTSXiyaYnJK24TxnmD0FP8Iu7kmLRQnApCUsDOhxtlwA6o8I85FPm2VgUQlAEW3sGZUd7NQcYAzpy4gTnUx8BPVm1vacyFdtJtz9DDFRg3ydrcECvbycsolqN2wV08xBHXtoCbcfk7LBGTUzjN0N+Ko3Xm1vJlkHMnOnSNnlfmi2CNCg8pKM7t0XTycNeuJRiNgync69nmePiAzPUPS8Hp27NSqg9iMQOMXN4+BPLyzWVj74VfmcTBSOV8WZvTBk8wWF+NUZI+okBy3B0PDTtw8hO51yyC8lWzpMfOO47IU9GYYa5v5Xpr/IASvLm9HRDiUpLAxIDHMJqgUKEz52FLAlBn3UsTopc6HhtA5P5U1RaPFOp8Zfh0bYzvcHHKqrZAEZkyNArzYBm5rxIl0BIx9LxhPQUv3jVuaDsfeiMdMA4RMCshKI9So=
         distributions: sdist bdist_wheel
+        on:
+          tags: true
   allow_failures:
     - env: TOXENV=mypy
 
