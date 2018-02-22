@@ -1,5 +1,4 @@
 language: python
-sudo: required
 
 stages:
   - name: test
@@ -14,18 +13,21 @@ jobs:
     - env: TOXENV=mypy
 
     - env: TOXENV=pypy3
+      sudo: required
       cache: pip
       python: pypy3
       before_install: &before_install
         - docker-compose run -d -p 8080:8080 crossbar
 
     - env: TOXENV=py35
+      sudo: required
       before_install: *before_install
       after_success: &after_success
         - pip install coveralls
         - coveralls
 
     - env: TOXENV=py36
+      sudo: required
       python: "3.6"
       before_install: *before_install
       after_success: *after_success
