@@ -265,6 +265,34 @@ class TestWAMPClient:
     def test_session_details_not_connected(self, wampclient: WAMPClient):
         assert wampclient.details is None
 
+    @pytest.mark.parametrize('custom_exception', [False, True])
+    @pytest.mark.asyncio
+    async def test_report_applicationerror(self, wampclient: WAMPClient, context: Context,
+                                           custom_exception):
+        class DummyReporter(ExceptionReporter):
+            def report_exception(self, ctx: Context, exception: BaseException, message: str,
+                                 extra: Dict[str, Any]) -> None:
+                errors.append((exception, message, extra))
+
+        class CustomError(Exception):
+            pass
+
+        def handler(ctx):
+            if custom_exception:
+                raise CustomError
+            else:
+                raise ApplicationError('dummy.error')
+
+        errors = []
+        context.add_resource(DummyReporter(), types=[ExceptionReporter])
+        wampclient.map_exception(CustomError, 'dummy.error')
+        await wampclient.register(handler, 'dummyprocedure')
+
+        with pytest.raises(CustomError):
+            await wampclient.call('dummyprocedure')
+
+        assert not errors
+
     @pytest.mark.parametrize('wampclient', [
         {'auth_method': 'ticket', 'auth_id': 'device1', 'auth_secret': 'abc123'}
     ], indirect=True)

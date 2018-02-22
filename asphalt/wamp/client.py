@@ -5,7 +5,7 @@ from asyncio import (  # noqa: F401
 from contextlib import suppress
 from inspect import isawaitable
 from ssl import SSLContext
-from typing import Callable, Optional, Union, Set, Dict, Any, List, cast  # noqa: F401
+from typing import Callable, Optional, Union, Set, Dict, Any, List, cast, Type  # noqa: F401
 from warnings import warn
 
 from autobahn.wamp.types import ISubscription
@@ -203,7 +203,7 @@ class WAMPClient:
             await gather(self._connect_task, return_exceptions=True)
             self._connect_task = None
 
-    def map_exception(self, exc_class: type, error: str) -> None:
+    def map_exception(self, exc_class: Type[BaseException], error: str) -> None:
         """
         Map a Python exception to a WAMP error.
 
@@ -227,10 +227,13 @@ class WAMPClient:
                         retval = await retval
                 except ApplicationError:
                     raise  # These are deliberately raised so no need to report them
-                except Exception:
-                    report_exception(
-                        ctx, 'Error running handler for procedure {!r}'.format(procedure.name),
-                        logger=False)
+                except Exception as exc:
+                    # Report the exception unless it's a mapped exception
+                    if exc.__class__ not in self._session._ecls_to_uri_pat:
+                        report_exception(
+                            ctx, 'Error running handler for procedure {!r}'.format(procedure.name),
+                            logger=False)
+
                     raise
                 finally:
                     self._request_tasks.remove(current_task)
