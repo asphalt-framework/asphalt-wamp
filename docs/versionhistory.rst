@@ -3,7 +3,7 @@ Version history
 
 This library adheres to `Semantic Versioning <http://semver.org/>`_.
 
-**2.2.1**
+**2.2.1** (2018-02-22)
 
 - Fixed mapped custom exceptions being reported via asphalt-exceptions
 
