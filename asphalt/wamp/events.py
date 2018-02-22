@@ -15,7 +15,7 @@ class SessionJoinEvent(Event):
 
     __slots__ = 'details'
 
-    def __init__(self, source, topic: str, session_details: SessionDetails):
+    def __init__(self, source, topic: str, session_details: SessionDetails) -> None:
         super().__init__(source, topic)
         self.details = session_details
 
@@ -30,7 +30,7 @@ class SessionLeaveEvent(Event):
 
     __slots__ = 'reason', 'message'
 
-    def __init__(self, source, topic: str, close_details: CloseDetails):
+    def __init__(self, source, topic: str, close_details: CloseDetails) -> None:
         super().__init__(source, topic)
         self.reason = close_details.reason
         self.message = close_details.message

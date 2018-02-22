@@ -108,7 +108,7 @@ def test_exception_decorator(registry: WAMPRegistry, use_decorator):
 
 def test_invalid_exception(registry: WAMPRegistry):
     exc = pytest.raises(TypeError, registry.map_exception, str, 'x.y.z')
-    exc.match('exc_type must be a subclass of BaseException')
+    exc.match('argument "exc_type" must be a subclass of BaseException')
 
 
 @pytest.mark.parametrize('prefix', ['', 'middle'])

@@ -5,9 +5,10 @@ from asyncio import (  # noqa: F401
 from contextlib import suppress
 from inspect import isawaitable
 from ssl import SSLContext
-from typing import Callable, Optional, Union, Set, Dict, Any  # noqa: F401
+from typing import Callable, Optional, Union, Set, Dict, Any, List, cast  # noqa: F401
 from warnings import warn
 
+from autobahn.wamp.types import ISubscription
 from asphalt.core import Context, resolve_reference, Signal
 from asphalt.exceptions import report_exception
 from asphalt.serialization.api import Serializer
@@ -18,7 +19,7 @@ from autobahn.asyncio.websocket import WampWebSocketClientFactory
 from autobahn.wamp import auth, ApplicationError, SessionNotReady, TransportLost
 from autobahn.wamp.types import (
     ComponentConfig, SessionDetails, EventDetails, CallDetails, PublishOptions, CallOptions,
-    Challenge, SubscribeOptions, RegisterOptions)
+    Challenge, SubscribeOptions, RegisterOptions, IRegistration)
 from typeguard import check_argument_types
 
 from asphalt.wamp.context import CallContext, EventContext
@@ -87,7 +88,7 @@ class WAMPClient:
                  registry: Union[WAMPRegistry, str] = None, tls: bool = False,
                  tls_context: Union[str, SSLContext] = None,
                  serializer: Union[Serializer, str] = None, auth_method: str = 'anonymous',
-                 auth_id: str = None, auth_secret: str = None):
+                 auth_id: str = None, auth_secret: str = None) -> None:
         """
         :param host: host address of the WAMP router
         :param port: port to connect to
@@ -141,8 +142,8 @@ class WAMPClient:
         self._session_details = None  # type: SessionDetails
         self._connect_task = None  # type: Task
         self._request_tasks = set()  # type: Set[Task]
-        self._registrations = []
-        self._subscriptions = []
+        self._registrations = []  # type: List[IRegistration]
+        self._subscriptions = []  # type: List[ISubscription]
 
     async def start(self, ctx: Context):
         self._parent_context = ctx
@@ -342,6 +343,8 @@ class WAMPClient:
         if options and options.acknowledge:
             publication = await retval
             return publication.id
+        else:
+            return None
 
     async def call(self, endpoint: str, *args, options: Union[CallOptions, Dict[str, Any]] = None,
                    **kwargs):
@@ -431,7 +434,8 @@ class WAMPClient:
                     with timeout(self.connection_timeout):
                         transport, protocol = await self._loop.create_connection(
                             transport_factory, self.host, self.port,
-                            ssl=self.tls_context or True if self.tls else False)
+                            ssl=(cast(Optional[SSLContext], self.tls_context) or
+                                 True if self.tls else False))
 
                         # Connection established; wait for the session to join the realm
                         logger.info('Connected to %s; attempting to join realm %s', self.host,

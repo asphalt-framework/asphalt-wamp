@@ -25,7 +25,7 @@ class CallContext(Context):
     """
 
     def __init__(self, parent: Context, session_details: SessionDetails,
-                 call_details: CallDetails, **kwargs):
+                 call_details: CallDetails, **kwargs) -> None:
         super().__init__(parent, **kwargs)
         self.session_id = session_details.session
         self.progress = call_details.progress
@@ -55,7 +55,7 @@ class EventContext(Context):
     """
 
     def __init__(self, parent: Context, session_details: SessionDetails,
-                 event_details: EventDetails, **kwargs):
+                 event_details: EventDetails, **kwargs) -> None:
         super().__init__(parent, **kwargs)
         self.session_id = session_details.session
         self.publication_id = event_details.publication

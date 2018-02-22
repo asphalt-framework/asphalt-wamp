@@ -1,6 +1,6 @@
 import inspect
 from collections import OrderedDict
-from typing import Callable, Dict, Any, Union, NamedTuple, TypeVar
+from typing import Callable, Dict, Any, Union, NamedTuple, TypeVar, Type, List, cast, Optional
 
 from autobahn.wamp.types import SubscribeOptions, RegisterOptions
 from typeguard import check_argument_types
@@ -57,7 +57,7 @@ class WAMPRegistry:
 
     def __init__(self, prefix: str = '', *,
                  procedure_defaults: Union[RegisterOptions, Dict[str, Any]] = None,
-                 subscription_defaults: Union[SubscribeOptions, Dict[str, Any]] = None):
+                 subscription_defaults: Union[SubscribeOptions, Dict[str, Any]] = None) -> None:
         """
         :param prefix: a prefix that is added to the name of every registered procedure
         :param procedure_defaults: default values to use for omitted arguments to
@@ -83,9 +83,9 @@ class WAMPRegistry:
 
         self.procedure_defaults = procedure_defaults
         self.subscription_defaults = subscription_defaults
-        self.procedures = OrderedDict()
-        self.subscriptions = []
-        self.exceptions = OrderedDict()
+        self.procedures = OrderedDict()  # type: Dict[str, Procedure]
+        self.subscriptions = []  # type: List[Subscriber]
+        self.exceptions = OrderedDict()  # type: Dict[str, Type[BaseException]]
 
     def add_procedure(self, handler: Callable, name: str = None,
                       options: Union[RegisterOptions, Dict[str, Any]] = None) -> Procedure:
@@ -142,12 +142,12 @@ class WAMPRegistry:
 
         """
         def wrapper(handler: Callable):
-            self.add_procedure(handler, name, options)
+            self.add_procedure(handler, cast(Optional[str], name), options)
             return handler
 
         if inspect.isfunction(name):
             handler, name = name, None
-            return wrapper(handler)
+            return wrapper(cast(Callable, handler))
 
         return wrapper
 
@@ -210,7 +210,7 @@ class WAMPRegistry:
 
         return wrapper
 
-    def map_exception(self, exc_type: type, code: str) -> None:
+    def map_exception(self, exc_type: Type[BaseException], code: str) -> None:
         """
         Map a Python exception class to a WAMP error code.
 

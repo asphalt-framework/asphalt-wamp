@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Tuple, Optional, List
 
 import txaio
 from asphalt.core import Component, Context, merge_config, context_teardown
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class WAMPComponent(Component):
     """Creates one or more :class:`~asphalt.wamp.client.WAMPClient` resources."""
 
-    def __init__(self, clients: Dict[str, Dict[str, Any]] = None, **default_client_args):
+    def __init__(self, clients: Dict[str, Dict[str, Any]] = None, **default_client_args) -> None:
         """
         If the ``clients`` argument is omitted or empty, a default client with the context
         attribute ``wamp`` will be created.
@@ -39,7 +39,7 @@ class WAMPComponent(Component):
             default_client_args.setdefault('context_attr', 'wamp')
             clients = {'default': default_client_args}
 
-        self.clients = []
+        self.clients = []  # type: List[Tuple[str, Optional[str], WAMPClient]]
         for resource_name, config in clients.items():
             config = merge_config(default_client_args, config)
             context_attr = config.pop('context_attr', resource_name)

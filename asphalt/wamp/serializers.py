@@ -4,7 +4,7 @@ from autobahn.wamp.interfaces import IObjectSerializer
 
 
 class ObjectSerializerWrapper(IObjectSerializer):
-    def __init__(self, serializer: Serializer, binary: bool):
+    def __init__(self, serializer: Serializer, binary: bool) -> None:
         self._serializer = serializer
         self._binary = binary
 
@@ -21,7 +21,7 @@ class ObjectSerializerWrapper(IObjectSerializer):
 
 class SerializerWrapper(autobahn.Serializer):
     def __init__(self, serializer: Serializer, serializer_id: str, rawsocket_id: int,
-                 binary: bool):
+                 binary: bool) -> None:
         super(SerializerWrapper, self).__init__(ObjectSerializerWrapper(serializer, binary))
         self.SERIALIZER_ID = serializer_id
         self.RAWSOCKET_SERIALIZER_ID = rawsocket_id
