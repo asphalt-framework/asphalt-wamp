@@ -1,6 +1,7 @@
 import inspect
 from collections import OrderedDict
-from typing import Callable, Dict, Any, Union, NamedTuple, TypeVar, Type, List, cast, Optional
+from typing import (  # noqa: F401
+    Callable, Dict, Any, Union, NamedTuple, TypeVar, Type, List, cast, Optional)
 
 from autobahn.wamp.types import SubscribeOptions, RegisterOptions
 from typeguard import check_argument_types

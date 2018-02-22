@@ -8,7 +8,6 @@ from ssl import SSLContext
 from typing import Callable, Optional, Union, Set, Dict, Any, List, cast, Type  # noqa: F401
 from warnings import warn
 
-from autobahn.wamp.types import ISubscription
 from asphalt.core import Context, resolve_reference, Signal
 from asphalt.exceptions import report_exception
 from asphalt.serialization.api import Serializer
@@ -17,9 +16,9 @@ from async_timeout import timeout
 from autobahn.asyncio.wamp import ApplicationSession
 from autobahn.asyncio.websocket import WampWebSocketClientFactory
 from autobahn.wamp import auth, ApplicationError, SessionNotReady, TransportLost
-from autobahn.wamp.types import (
+from autobahn.wamp.types import (  # noqa: F401
     ComponentConfig, SessionDetails, EventDetails, CallDetails, PublishOptions, CallOptions,
-    Challenge, SubscribeOptions, RegisterOptions, IRegistration)
+    Challenge, SubscribeOptions, RegisterOptions, IRegistration, ISubscription)
 from typeguard import check_argument_types
 
 from asphalt.wamp.context import CallContext, EventContext

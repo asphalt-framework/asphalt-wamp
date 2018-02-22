@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Tuple, Optional, List
+from typing import Any, Dict, Tuple, Optional, List  # noqa: F401
 
 import txaio
 from asphalt.core import Component, Context, merge_config, context_teardown
