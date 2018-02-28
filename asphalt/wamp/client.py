@@ -191,8 +191,9 @@ class WAMPClient:
                             len(self._request_tasks))
                         await wait(self._request_tasks)
 
-                    with suppress(SessionNotReady):
-                        await self._session.leave()
+                    if self._session:  # The session might be gone at this point
+                        with suppress(SessionNotReady):
+                            await self._session.leave()
             except TransportLost:
                 pass
             except asyncio.TimeoutError:
