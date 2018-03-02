@@ -3,6 +3,10 @@ Version history
 
 This library adheres to `Semantic Versioning <http://semver.org/>`_.
 
+**2.2.2** (2018-03-02)
+
+- Fixed error in ``Client.stop()`` when the session is already ``None``
+
 **2.2.1** (2018-02-22)
 
 - Fixed mapped custom exceptions being reported via asphalt-exceptions
